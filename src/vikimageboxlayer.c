@@ -117,7 +117,7 @@ VikLayerInterface vik_imagebox_layer_interface = {
 struct _VikImageboxLayer {
   VikLayer vl;
   GdkGC *gc;
-  VikCoord center;
+  struct LatLon center;
   guint16 zoom_factor, pixels_width, pixels_height;
 };
 
@@ -161,8 +161,8 @@ gboolean imagebox_layer_set_param ( VikImageboxLayer *vil, guint16 id, VikLayerP
 {
   switch ( id )
   {
-    case PARAM_CENTER_LAT: vil->center.north_south = data.d; break;
-    case PARAM_CENTER_LON: vil->center.east_west = data.d; break;
+    case PARAM_CENTER_LAT: vil->center.lat = data.d; break;
+    case PARAM_CENTER_LON: vil->center.lon = data.d; break;
     case PARAM_ZOOM_FACTOR: vil->zoom_factor = data.u; break;
     case PARAM_PIXELS_WIDTH: vil->pixels_width = data.u; break;
     case PARAM_PIXELS_HEIGHT: vil->pixels_height = data.u; break;
@@ -175,8 +175,8 @@ static VikLayerParamData imagebox_layer_get_param ( VikImageboxLayer *vil, guint
   VikLayerParamData rv;
   switch ( id )
   {
-    case PARAM_CENTER_LAT: rv.d = vil->center.north_south; break;
-    case PARAM_CENTER_LON: rv.d = vil->center.east_west; break;
+    case PARAM_CENTER_LAT: rv.d = vil->center.lat; break;
+    case PARAM_CENTER_LON: rv.d = vil->center.lon; break;
     case PARAM_ZOOM_FACTOR: rv.u = vil->zoom_factor; break;
     case PARAM_PIXELS_WIDTH: rv.u = vil->pixels_width; break;
     case PARAM_PIXELS_HEIGHT: rv.u = vil->pixels_height; break;
@@ -198,13 +198,14 @@ VikImageboxLayer *vik_imagebox_layer_new ( )
   vik_layer_init ( VIK_LAYER(vil), VIK_LAYER_IMAGEBOX );
 
   vil->gc = NULL;
-  vil->center.north_south = vil->center.east_west = 0.0;
-  vil->center.mode = VIK_COORD_LATLON;
+  vil->center.lat = vil->center.lon = 0.0;
   vil->zoom_factor = 4;
   vil->pixels_width = 1600;
   vil->pixels_height = 900;
   return vil;
 }
+
+#define VIK_IMAGEBOX_CLIP_ALLOWANCE 9
 
 void vik_imagebox_layer_draw ( VikImageboxLayer *vil, gpointer data )
 {
@@ -219,21 +220,33 @@ void vik_imagebox_layer_draw ( VikImageboxLayer *vil, gpointer data )
   gdouble actual_width = vil->zoom_factor / vp_zoom * vil->pixels_width;
   gdouble actual_height = vil->zoom_factor / vp_zoom * vil->pixels_height;
 
-  // TODO: clipping
-  int x, y;
-  vik_viewport_coord_to_screen(vp, &(vil->center), &x, &y);
-  int x1 = x - actual_width, x2 = x + actual_width, y1 = y - actual_height, y2 = y + actual_height;
+  // Find center
+  gint x, y;
+  VikCoord center_coord;
+  vik_coord_load_from_latlon(&center_coord, vik_viewport_get_coord_mode(vp), &(vil->center));
+  vik_viewport_coord_to_screen(vp, &center_coord, &x, &y);
+ 
+  // Find corners
+  gint x1 = x - actual_width, x2 = x + actual_width, y1 = y - actual_height, y2 = y + actual_height;
 
+  // it DOESNT NEED TO BE DRAWN if (make the viewport box a litte bit bigger to allow for line thickness, etc.)
+  gint vp_box_x1 = -VIK_IMAGEBOX_CLIP_ALLOWANCE;
+  gint vp_box_y1 = -VIK_IMAGEBOX_CLIP_ALLOWANCE;
+  gint vp_box_x2 = vik_viewport_get_width(vp) + VIK_IMAGEBOX_CLIP_ALLOWANCE;
+  gint vp_box_y2 = vik_viewport_get_height(vp) + VIK_IMAGEBOX_CLIP_ALLOWANCE;
 
-  // it DOESNT NEED TO BE DRAWN if:
   // it's completely north of screen, west of screen, east of screen, south of screen.
-  if ( x2 < 0 || y2 < 0 || x1 > vik_viewport_get_width(vp) || y2 > vik_viewport_get_height(vp) )
+  if ( x2 < vp_box_x1 || y2 < vp_box_y1 || x1 > vp_box_x2 || y1 > vp_box_y2 )
     return;
   // OR the screen is completely inside it.
-  if ( x1 < 0 && y1 < 0 && x2 > vik_viewport_get_width(vp) && y2 > vik_viewport_get_height(vp) )
+  if ( x1 < vp_box_x1 && y1 < vp_box_y1 && x2 > vp_box_x2 && y2 > vp_box_y2 )
     return;
 
-  // otherwise one of the lines goes thru it. draw it.
+  // otherwise one of the lines goes thru it. clip coordinates (VikViewport has internal clipping of 9px) and draw it
+  x1 = MAX(x1, vp_box_x1);
+  y1 = MAX(y1, vp_box_y1);
+  x2 = MIN(x2, vp_box_x2);
+  y2 = MIN(y2, vp_box_y2);
   vik_viewport_draw_rectangle(vp, vil->gc, FALSE, x1, y1, x2-x1, y2-y1);
 }
 
