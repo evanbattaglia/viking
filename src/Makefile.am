@@ -72,6 +72,7 @@ libviking_a_SOURCES = \
 	viklayer.c viklayer.h \
 	viklayerspanel.c viklayerspanel.h \
 	vikcoordlayer.c vikcoordlayer.h \
+	vikimageboxlayer.c vikimageboxlayer.h \
 	vikstatus.c vikstatus.h \
 	vikwindow.c vikwindow.h \
 	vikviewport.c vikviewport.h \
