@@ -39,6 +39,7 @@ extern VikLayerInterface vik_coord_layer_interface;
 extern VikLayerInterface vik_georef_layer_interface;
 extern VikLayerInterface vik_gps_layer_interface;
 extern VikLayerInterface vik_dem_layer_interface;
+extern VikLayerInterface vik_imagebox_layer_interface;
 
 enum {
   VL_UPDATE_SIGNAL,
@@ -148,6 +149,7 @@ static VikLayerInterface *vik_layer_interfaces[VIK_LAYER_NUM_TYPES] = {
   &vik_gps_layer_interface,
   &vik_maps_layer_interface,
   &vik_dem_layer_interface,
+  &vik_imagebox_layer_interface,
 };
 
 VikLayerInterface *vik_layer_get_interface ( gint type )

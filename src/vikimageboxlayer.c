@@ -37,14 +37,14 @@ static void imagebox_layer_marshall( VikImageboxLayer *vil, guint8 **data, gint 
 static VikImageboxLayer *imagebox_layer_unmarshall( guint8 *data, gint len, VikViewport *vvp );
 static gboolean imagebox_layer_set_param ( VikImageboxLayer *vil, guint16 id, VikLayerParamData data, VikViewport *vp, gboolean is_file_operation );
 static VikLayerParamData imagebox_layer_get_param ( VikImageboxLayer *vil, guint16 id, gboolean is_file_operation );
-static void imagebox_layer_update_gc ( VikImageboxLayer *vil, VikViewport *vp, const gchar *color );
+static void imagebox_layer_update_gc ( VikImageboxLayer *vil, VikViewport *vp );
 static void imagebox_layer_post_read ( VikLayer *vl, VikViewport *vp, gboolean from_file );
 
 static VikLayerParamScale param_scales[] = {
-  { -90, 90, 0.01, 0 },
-  { -180, 180, 0.01, 0 },
-  { 1, 4096, 1, 4 },
-  { 1, 8192, 1, 1280 },
+  { -90, 90, 0.01, 6 },
+  { -180, 180, 0.01, 6 },
+  { 1, 4096, 1, 0 },
+  { 1, 8192, 1, 0 },
 };
 
 static VikLayerParam imagebox_layer_params[] = {
@@ -52,7 +52,7 @@ static VikLayerParam imagebox_layer_params[] = {
   { "center_lon", VIK_LAYER_PARAM_DOUBLE, VIK_LAYER_GROUP_NONE, N_("Center Longitude:"), VIK_LAYER_WIDGET_SPINBUTTON, param_scales + 1 },
   { "zoom_factor", VIK_LAYER_PARAM_UINT, VIK_LAYER_GROUP_NONE, N_("Zoom Factor"), VIK_LAYER_WIDGET_SPINBUTTON, param_scales + 2 },
   { "pixels_width", VIK_LAYER_PARAM_UINT, VIK_LAYER_GROUP_NONE, N_("Image Width (pixels)"), VIK_LAYER_WIDGET_SPINBUTTON, param_scales + 3 },
-  { "pixels_height", VIK_LAYER_PARAM_UINT, VIK_LAYER_GROUP_NONE, N_("Image Height (pixels)"), VIK_LAYER_WIDGET_SPINGBUTTON, param_scales + 3 },
+  { "pixels_height", VIK_LAYER_PARAM_UINT, VIK_LAYER_GROUP_NONE, N_("Image Height (pixels)"), VIK_LAYER_WIDGET_SPINBUTTON, param_scales + 3 },
 };
 
 enum { PARAM_CENTER_LAT = 0, PARAM_CENTER_LON, PARAM_ZOOM_FACTOR, PARAM_PIXELS_WIDTH, PARAM_PIXELS_HEIGHT, NUM_PARAMS };
@@ -64,7 +64,7 @@ VikLayerInterface vik_imagebox_layer_interface = {
   NULL,
   0,
 
-  image_layer_params,
+  imagebox_layer_params,
   NUM_PARAMS,
   NULL,
   0,
@@ -194,7 +194,7 @@ static void imagebox_layer_post_read ( VikLayer *vl, VikViewport *vp, gboolean f
 
 VikImageboxLayer *vik_imagebox_layer_new ( )
 {
-  VikImageboxLayer *vil = VIK_IMAGE_BOX_LAYER ( g_object_new ( VIK_IMAGEBOX_LAYER_TYPE, NULL ) );
+  VikImageboxLayer *vil = VIK_IMAGEBOX_LAYER ( g_object_new ( VIK_IMAGEBOX_LAYER_TYPE, NULL ) );
   vik_layer_init ( VIK_LAYER(vil), VIK_LAYER_IMAGEBOX );
 
   vil->gc = NULL;
@@ -207,7 +207,7 @@ VikImageboxLayer *vik_imagebox_layer_new ( )
 
 void vik_imagebox_layer_draw ( VikImageboxLayer *vil, gpointer data )
 {
-  VikViewport *vp = (VikViewport *) data;
+  //VikViewport *vp = (VikViewport *) data;
 
   if ( !vil->gc ) {
     return;

@@ -25,13 +25,13 @@
 #include "viklayer.h"
 
 #define VIK_IMAGEBOX_LAYER_TYPE            (vik_imagebox_layer_get_type ())
-#define VIK_IMAGEBOX_LAYER(obj)            (G_TYPE_CHECK_INSTANCE_CAST ((obj), VIK_IMAGEBOX_LAYER_TYPE, VikImageBoxLayer))
-#define VIK_IMAGEBOX_LAYER_CLASS(klass)    (G_TYPE_CHECK_CLASS_CAST ((klass), VIK_IMAGEBOX_LAYER_TYPE, VikImageBoxLayerClass))
+#define VIK_IMAGEBOX_LAYER(obj)            (G_TYPE_CHECK_INSTANCE_CAST ((obj), VIK_IMAGEBOX_LAYER_TYPE, VikImageboxLayer))
+#define VIK_IMAGEBOX_LAYER_CLASS(klass)    (G_TYPE_CHECK_CLASS_CAST ((klass), VIK_IMAGEBOX_LAYER_TYPE, VikImageboxLayerClass))
 #define IS_VIK_IMAGEBOX_LAYER(obj)         (G_TYPE_CHECK_INSTANCE_TYPE ((obj), VIK_IMAGEBOX_LAYER_TYPE))
 #define IS_VIK_IMAGEBOX_LAYER_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE ((klass), VIK_IMAGEBOX_LAYER_TYPE))
 
-typedef struct _VikImageBoxLayerClass VikImageBoxLayerClass;
-struct _VikImageBoxLayerClass
+typedef struct _VikImageboxLayerClass VikImageboxLayerClass;
+struct _VikImageboxLayerClass
 {
   VikLayerClass object_class;
 };
@@ -47,7 +47,7 @@ void vik_imagebox_layer_draw ( VikImageboxLayer *vil, gpointer data );
 void vik_imagebox_layer_free ( VikImageboxLayer *vil );
 
 VikImageboxLayer *vik_imagebox_layer_create ( VikViewport *vp );
-gboolean vik_imagebox_layer_properties ( VikImageLayer *vcl, gpointer vp );
+gboolean vik_imagebox_layer_properties ( VikImageboxLayer *vcl, gpointer vp );
 
 
 #endif

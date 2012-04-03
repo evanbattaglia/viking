@@ -45,6 +45,7 @@
 #include "vikaggregatelayer.h"
 #include "viklayerspanel.h"
 #include "vikcoordlayer.h"
+#include "vikimageboxlayer.h"
 #include "vikgeoreflayer.h"
 #include "vikstatus.h"
 #include "vikfileentry.h"
