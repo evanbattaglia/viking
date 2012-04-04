@@ -39,6 +39,7 @@ static gboolean imagebox_layer_set_param ( VikImageboxLayer *vil, guint16 id, Vi
 static VikLayerParamData imagebox_layer_get_param ( VikImageboxLayer *vil, guint16 id, gboolean is_file_operation );
 static void imagebox_layer_update_gc ( VikImageboxLayer *vil, VikViewport *vp );
 static void imagebox_layer_post_read ( VikLayer *vl, VikViewport *vp, gboolean from_file );
+static void imagebox_layer_add_menu_items ( VikImageboxLayer *vil, GtkMenu *menu, gpointer vlp );
 
 static VikLayerParamScale param_scales[] = {
   { -90, 90, 0.01, 6 },
@@ -83,7 +84,7 @@ VikLayerInterface vik_imagebox_layer_interface = {
   (VikLayerFuncSetMenuItemsSelection)   NULL,
   (VikLayerFuncGetMenuItemsSelection)   NULL,
 
-  (VikLayerFuncAddMenuItems)            NULL,
+  (VikLayerFuncAddMenuItems)            imagebox_layer_add_menu_items,
   (VikLayerFuncSublayerAddMenuItems)    NULL,
 
   (VikLayerFuncSublayerRenameRequest)   NULL,
@@ -227,7 +228,7 @@ void vik_imagebox_layer_draw ( VikImageboxLayer *vil, gpointer data )
   vik_viewport_coord_to_screen(vp, &center_coord, &x, &y);
  
   // Find corners
-  gint x1 = x - actual_width, x2 = x + actual_width, y1 = y - actual_height, y2 = y + actual_height;
+  gint x1 = x - (actual_width/2), x2 = x + (actual_width/2), y1 = y - (actual_height/2), y2 = y + (actual_height/2);
 
   // it DOESNT NEED TO BE DRAWN if (make the viewport box a litte bit bigger to allow for line thickness, etc.)
   gint vp_box_x1 = -VIK_IMAGEBOX_CLIP_ALLOWANCE;
@@ -270,5 +271,73 @@ VikImageboxLayer *vik_imagebox_layer_create ( VikViewport *vp )
   VikImageboxLayer *vil = vik_imagebox_layer_new ();
   imagebox_layer_update_gc ( vil, vp );
   return vil;
+}
+
+static void imagebox_layer_generate_map ( gpointer vil_vlp[2] )
+{
+  VikImageboxLayer *vil = VIK_IMAGEBOX_LAYER ( vil_vlp[0] );
+  VikLayersPanel *vlp = VIK_LAYERS_PANEL(vil_vlp[1]);
+  VikViewport *vp = vik_layers_panel_get_viewport(vlp);
+
+  // Lots copied from vikwindow.c:save_image_file. It would e nice to DRY this up.
+  /* more efficient way: stuff draws directly to pixbuf (fork viewport) */
+  GdkPixbuf *pixbuf_to_save;
+  gdouble old_xmpp, old_ympp;
+  GError *error = NULL;
+  /* backup old zoom & set new */
+  VikCoord orig_center= *vik_viewport_get_center(vp);
+  old_xmpp = vik_viewport_get_xmpp ( vp );
+  old_ympp = vik_viewport_get_ympp ( vp );
+  VikCoord new_center;
+  vik_coord_load_from_latlon( &new_center, vik_viewport_get_coord_mode(vp), &(vil->center));
+  vik_viewport_set_center_coord(vp, &new_center);
+  vik_viewport_set_zoom ( vp, vil->zoom_factor );
+
+  /* reset width and height: */
+  vik_viewport_configure_manually ( vp, vil->pixels_width, vil->pixels_height );
+
+  /* draw all layers */
+  vik_viewport_clear ( vp );
+  vik_layers_panel_draw_all ( vlp );
+  vik_viewport_draw_scale ( vp );
+
+  /* save buffer as file. */
+  pixbuf_to_save = gdk_pixbuf_get_from_drawable ( NULL, GDK_DRAWABLE(vik_viewport_get_pixmap ( vp )), NULL, 0, 0, 0, 0, vil->pixels_width, vil->pixels_height);
+//  gdk_pixbuf_save ( pixbuf_to_save, fn, save_as_png ? "png" : "jpeg", &error, NULL ); TODO: option for .jpg and filename :)
+  gchar *fn = "vikimagemaplayer-output.png";
+  gdk_pixbuf_save ( pixbuf_to_save, fn, "png", &error, NULL );
+  if (error)
+  {
+    g_warning("Unable to write to file %s: %s", fn, error->message );
+    g_error_free (error);
+  }
+  g_object_unref ( G_OBJECT(pixbuf_to_save) );
+
+  /* pretend like nothing happened ;) */
+  vik_viewport_set_xmpp ( vp, old_xmpp );
+  vik_viewport_set_ympp ( vp, old_ympp );
+  vik_viewport_set_center_coord(vp, &orig_center);
+  vik_viewport_configure ( vp );
+
+  // send signal for redraw draw_update ( vw );
+
+}
+
+static void imagebox_layer_add_menu_items ( VikImageboxLayer *vil, GtkMenu *menu, gpointer vlp )
+{
+  static gpointer pass_along[2];
+  GtkWidget *item;
+  pass_along[0] = vil;
+  pass_along[1] = vlp;
+
+  item = gtk_menu_item_new();
+  gtk_menu_shell_append ( GTK_MENU_SHELL(menu), item );
+  gtk_widget_show ( item );
+
+  item = gtk_image_menu_item_new_with_mnemonic ( _("_Generate Map") );
+  gtk_image_menu_item_set_image ( (GtkImageMenuItem*)item, gtk_image_new_from_stock (GTK_STOCK_ZOOM_FIT, GTK_ICON_SIZE_MENU) );
+  g_signal_connect_swapped ( G_OBJECT(item), "activate", G_CALLBACK(imagebox_layer_generate_map), pass_along );
+  gtk_menu_shell_append (GTK_MENU_SHELL (menu), item);
+  gtk_widget_show ( item );
 }
 
