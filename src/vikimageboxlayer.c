@@ -49,6 +49,7 @@ static VikLayerParamScale param_scales[] = {
 };
 
 static VikLayerParam imagebox_layer_params[] = {
+  { "filename", VIK_LAYER_PARAM_STRING, VIK_LAYER_GROUP_NONE, N_("File to save to:"), VIK_LAYER_WIDGET_FILESAVEENTRY },
   { "center_lat", VIK_LAYER_PARAM_DOUBLE, VIK_LAYER_GROUP_NONE, N_("Center Latitude:"), VIK_LAYER_WIDGET_SPINBUTTON, param_scales + 0 },
   { "center_lon", VIK_LAYER_PARAM_DOUBLE, VIK_LAYER_GROUP_NONE, N_("Center Longitude:"), VIK_LAYER_WIDGET_SPINBUTTON, param_scales + 1 },
   { "zoom_factor", VIK_LAYER_PARAM_UINT, VIK_LAYER_GROUP_NONE, N_("Zoom Factor"), VIK_LAYER_WIDGET_SPINBUTTON, param_scales + 2 },
@@ -56,7 +57,7 @@ static VikLayerParam imagebox_layer_params[] = {
   { "pixels_height", VIK_LAYER_PARAM_UINT, VIK_LAYER_GROUP_NONE, N_("Image Height (pixels)"), VIK_LAYER_WIDGET_SPINBUTTON, param_scales + 3 },
 };
 
-enum { PARAM_CENTER_LAT = 0, PARAM_CENTER_LON, PARAM_ZOOM_FACTOR, PARAM_PIXELS_WIDTH, PARAM_PIXELS_HEIGHT, NUM_PARAMS };
+enum { PARAM_FILENAME = 0, PARAM_CENTER_LAT, PARAM_CENTER_LON, PARAM_ZOOM_FACTOR, PARAM_PIXELS_WIDTH, PARAM_PIXELS_HEIGHT, NUM_PARAMS };
 
 VikLayerInterface vik_imagebox_layer_interface = {
   "Image box",
@@ -118,6 +119,7 @@ VikLayerInterface vik_imagebox_layer_interface = {
 struct _VikImageboxLayer {
   VikLayer vl;
   GdkGC *gc;
+  gchar *filename;
   struct LatLon center;
   guint16 zoom_factor, pixels_width, pixels_height;
 };
@@ -162,6 +164,7 @@ gboolean imagebox_layer_set_param ( VikImageboxLayer *vil, guint16 id, VikLayerP
 {
   switch ( id )
   {
+    case PARAM_FILENAME: vil->filename = g_strdup(data.s); break;
     case PARAM_CENTER_LAT: vil->center.lat = data.d; break;
     case PARAM_CENTER_LON: vil->center.lon = data.d; break;
     case PARAM_ZOOM_FACTOR: vil->zoom_factor = data.u; break;
@@ -176,6 +179,7 @@ static VikLayerParamData imagebox_layer_get_param ( VikImageboxLayer *vil, guint
   VikLayerParamData rv;
   switch ( id )
   {
+    case PARAM_FILENAME: rv.s = vil->filename ? vil->filename : ""; break; 
     case PARAM_CENTER_LAT: rv.d = vil->center.lat; break;
     case PARAM_CENTER_LON: rv.d = vil->center.lon; break;
     case PARAM_ZOOM_FACTOR: rv.u = vil->zoom_factor; break;
@@ -198,6 +202,7 @@ VikImageboxLayer *vik_imagebox_layer_new ( )
   VikImageboxLayer *vil = VIK_IMAGEBOX_LAYER ( g_object_new ( VIK_IMAGEBOX_LAYER_TYPE, NULL ) );
   vik_layer_init ( VIK_LAYER(vil), VIK_LAYER_IMAGEBOX );
 
+  vil->filename = NULL;
   vil->gc = NULL;
   vil->center.lat = vil->center.lon = 0.0;
   vil->zoom_factor = 4;
@@ -253,6 +258,9 @@ void vik_imagebox_layer_draw ( VikImageboxLayer *vil, gpointer data )
 
 void vik_imagebox_layer_free ( VikImageboxLayer *vil )
 {
+  if ( vil->filename )
+    g_free ( vil->filename );
+  vil->filename = NULL;
   if ( vil->gc != NULL )
     g_object_unref ( G_OBJECT(vil->gc) );
 }
@@ -276,6 +284,11 @@ VikImageboxLayer *vik_imagebox_layer_create ( VikViewport *vp )
 static void imagebox_layer_generate_map ( gpointer vil_vlp[2] )
 {
   VikImageboxLayer *vil = VIK_IMAGEBOX_LAYER ( vil_vlp[0] );
+  if (! vil->filename || ! *(vil->filename)) {
+    a_dialog_error_msg ( VIK_GTK_WINDOW_FROM_LAYER(vil), "No filename to save to!");
+    return;
+  }
+
   VikLayersPanel *vlp = VIK_LAYERS_PANEL(vil_vlp[1]);
   VikViewport *vp = vik_layers_panel_get_viewport(vlp);
 
@@ -304,11 +317,13 @@ static void imagebox_layer_generate_map ( gpointer vil_vlp[2] )
   /* save buffer as file. */
   pixbuf_to_save = gdk_pixbuf_get_from_drawable ( NULL, GDK_DRAWABLE(vik_viewport_get_pixmap ( vp )), NULL, 0, 0, 0, 0, vil->pixels_width, vil->pixels_height);
 //  gdk_pixbuf_save ( pixbuf_to_save, fn, save_as_png ? "png" : "jpeg", &error, NULL ); TODO: option for .jpg and filename :)
-  gchar *fn = "vikimagemaplayer-output.png";
-  gdk_pixbuf_save ( pixbuf_to_save, fn, "png", &error, NULL );
+
+  gdk_pixbuf_save ( pixbuf_to_save, vil->filename, "png", &error, NULL );
   if (error)
   {
-    g_warning("Unable to write to file %s: %s", fn, error->message );
+    gchar *msg = g_strdup_printf("Unable to write to file %s: %s", vil->filename, error->message );
+    a_dialog_error_msg(VIK_GTK_WINDOW_FROM_LAYER(vil), msg);
+    g_free(msg);
     g_error_free (error);
   }
   g_object_unref ( G_OBJECT(pixbuf_to_save) );

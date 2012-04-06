@@ -156,6 +156,13 @@ GtkWidget *a_uibuilder_new_widget ( VikLayerParam *param, VikLayerParamData data
         vik_file_entry_set_filename ( VIK_FILE_ENTRY(rv), data.s );
       }
       break;
+    case VIK_LAYER_WIDGET_FILESAVEENTRY:
+      if ( param->type == VIK_LAYER_PARAM_STRING )
+      {
+        rv = vik_file_entry_new (GTK_FILE_CHOOSER_ACTION_SAVE);
+        vik_file_entry_set_filename ( VIK_FILE_ENTRY(rv), data.s );
+      }
+      break;
     case VIK_LAYER_WIDGET_FOLDERENTRY:
       if ( param->type == VIK_LAYER_PARAM_STRING )
       {
@@ -232,6 +239,7 @@ VikLayerParamData a_uibuilder_widget_get_value ( GtkWidget *widget, VikLayerPara
       rv.s = gtk_entry_get_text ( GTK_ENTRY(widget) );
       break;
     case VIK_LAYER_WIDGET_FILEENTRY:
+    case VIK_LAYER_WIDGET_FILESAVEENTRY:
     case VIK_LAYER_WIDGET_FOLDERENTRY:
       rv.s = vik_file_entry_get_filename ( VIK_FILE_ENTRY(widget) );
       break;

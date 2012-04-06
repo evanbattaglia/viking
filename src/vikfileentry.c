@@ -95,9 +95,9 @@ static void choose_file ( VikFileEntry *vfe )
     g_assert ( (win = gtk_widget_get_toplevel(GTK_WIDGET(vfe))) );
     vfe->file_selector = gtk_file_chooser_dialog_new (_("Choose file"),
 				      GTK_WINDOW(win),
-				      vfe->action,   /* open file or directory */
+				      vfe->action,   /* open file or directory, or save */
 				      GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-				      GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+				      vfe->action == GTK_FILE_CHOOSER_ACTION_SAVE ? GTK_STOCK_SAVE : GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
 				      NULL);
     gtk_window_set_transient_for ( GTK_WINDOW(vfe->file_selector), GTK_WINDOW(win) );
     gtk_window_set_destroy_with_parent ( GTK_WINDOW(vfe->file_selector), TRUE );
