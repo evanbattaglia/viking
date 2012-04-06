@@ -59,12 +59,23 @@ static VikLayerParam imagebox_layer_params[] = {
 
 enum { PARAM_FILENAME = 0, PARAM_CENTER_LAT, PARAM_CENTER_LON, PARAM_ZOOM_FACTOR, PARAM_PIXELS_WIDTH, PARAM_PIXELS_HEIGHT, NUM_PARAMS };
 
+
+/* tools */
+static gpointer imagebox_layer_move_create ( VikWindow *vw, VikViewport *vvp);
+static gboolean imagebox_layer_move_press ( VikImageboxLayer *vil, GdkEventButton *event, VikViewport *vvp );
+
+static VikToolInterface imagebox_tools[] = {
+  { N_("Recenter Imagebox"), (VikToolConstructorFunc) imagebox_layer_move_create, NULL, NULL, NULL,
+    (VikToolMouseFunc) imagebox_layer_move_press, NULL, NULL,
+    (VikToolKeyFunc) NULL, GDK_CURSOR_IS_PIXMAP, &cursor_geomove_pixbuf }, /* TODO: get rid of cursor_geomove_pixbuf and create an image from this. I copied this from georeflayer. */
+};
+
 VikLayerInterface vik_imagebox_layer_interface = {
   "Image box",
   &vikcoordlayer_pixbuf,
 
-  NULL,
-  0,
+  imagebox_tools,
+  sizeof(imagebox_tools) / sizeof(VikToolInterface),
 
   imagebox_layer_params,
   NUM_PARAMS,
@@ -353,3 +364,20 @@ static void imagebox_layer_add_menu_items ( VikImageboxLayer *vil, GtkMenu *menu
   gtk_widget_show ( item );
 }
 
+
+static gpointer imagebox_layer_move_create ( VikWindow *vw, VikViewport *vvp)
+{
+  return vvp;
+}
+
+static gboolean imagebox_layer_move_press ( VikImageboxLayer *vil, GdkEventButton *event, VikViewport *vvp )
+{
+  if (!vil || vil->vl.type != VIK_LAYER_IMAGEBOX)
+    return FALSE;
+
+  VikCoord new_center;
+  vik_viewport_screen_to_coord(vvp, event->x, event->y, &new_center);
+  vik_coord_to_latlon(&new_center, &(vil->center));
+  vik_layer_emit_update ( VIK_LAYER(vil), FALSE );
+  return TRUE; /* I didn't move anything on this layer! */
+}
