@@ -316,7 +316,6 @@ static void imagebox_layer_generate_map ( gpointer vil_vlp[2] )
 
   /* save buffer as file. */
   pixbuf_to_save = gdk_pixbuf_get_from_drawable ( NULL, GDK_DRAWABLE(vik_viewport_get_pixmap ( vp )), NULL, 0, 0, 0, 0, vil->pixels_width, vil->pixels_height);
-//  gdk_pixbuf_save ( pixbuf_to_save, fn, save_as_png ? "png" : "jpeg", &error, NULL ); TODO: option for .jpg and filename :)
 
   gdk_pixbuf_save ( pixbuf_to_save, vil->filename, "png", &error, NULL );
   if (error)
@@ -334,8 +333,8 @@ static void imagebox_layer_generate_map ( gpointer vil_vlp[2] )
   vik_viewport_set_center_coord(vp, &orig_center);
   vik_viewport_configure ( vp );
 
-  // send signal for redraw draw_update ( vw );
-
+  // redraw everything since we've messed with the viewport.
+  vik_layer_emit_update_although_invisible( VIK_LAYER(vil) );
 }
 
 static void imagebox_layer_add_menu_items ( VikImageboxLayer *vil, GtkMenu *menu, gpointer vlp )
