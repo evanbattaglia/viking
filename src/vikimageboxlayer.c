@@ -157,6 +157,7 @@ static VikImageboxLayer *imagebox_layer_unmarshall( guint8 *data, gint len, VikV
 {
   VikImageboxLayer *rv = vik_imagebox_layer_new ();
   vik_layer_unmarshall_params ( VIK_LAYER(rv), data, len, vvp );
+  imagebox_layer_update_gc ( rv, vvp);
   return rv;
 }
 
@@ -192,9 +193,7 @@ static VikLayerParamData imagebox_layer_get_param ( VikImageboxLayer *vil, guint
 static void imagebox_layer_post_read ( VikLayer *vl, VikViewport *vp, gboolean from_file )
 {
   VikImageboxLayer *vil = VIK_IMAGEBOX_LAYER(vl);
-  if ( vil->gc )
-    g_object_unref ( G_OBJECT(vil->gc) );
-  vil->gc = vik_viewport_new_gc ( vp, "black", 3 );
+  imagebox_layer_update_gc(vil, vp);
 }
 
 VikImageboxLayer *vik_imagebox_layer_new ( )
@@ -265,13 +264,12 @@ void vik_imagebox_layer_free ( VikImageboxLayer *vil )
     g_object_unref ( G_OBJECT(vil->gc) );
 }
 
-/* TODO: probably get rid of this function */
 static void imagebox_layer_update_gc ( VikImageboxLayer *vil, VikViewport *vp )
 {
   if ( vil->gc )
     g_object_unref ( G_OBJECT(vil->gc) );
 
-  vil->gc = vik_viewport_new_gc ( vp, "black", 3 ); /* TODO: DRY "black", 3 if this function is needed */
+  vil->gc = vik_viewport_new_gc ( vp, "black", 3 );
 }
 
 VikImageboxLayer *vik_imagebox_layer_create ( VikViewport *vp )
