@@ -41,7 +41,7 @@ static void imagebox_layer_update_gc ( VikImageboxLayer *vil, VikViewport *vp );
 static void imagebox_layer_post_read ( VikLayer *vl, VikViewport *vp, gboolean from_file );
 static void imagebox_layer_add_menu_items ( VikImageboxLayer *vil, GtkMenu *menu, gpointer vlp );
 
-static void imagemap_layer_draw_compass_rose(VikImageboxLayer *vil, VikViewport *vp);
+static void imagebox_layer_draw_compass_rose(VikImageboxLayer *vil, VikViewport *vp);
 
 static VikLayerParamScale param_scales[] = {
   { -90, 90, 0.01, 6 },
@@ -257,6 +257,15 @@ VikImageboxLayer *vik_imagebox_layer_new ( )
   return vil;
 }
 
+static gboolean imagebox_layer_has_compass_rose(VikImageboxLayer *vil)
+{
+    return ( vil->compass_rose_filename &&
+      ABS(vil->compass_rose_x_offset) <= vil->pixels_width &&
+      ABS(vil->compass_rose_y_offset) <= vil->pixels_height );
+}
+
+
+
 #define VIK_IMAGEBOX_CLIP_ALLOWANCE 9
 
 void vik_imagebox_layer_draw ( VikImageboxLayer *vil, gpointer data )
@@ -287,19 +296,32 @@ void vik_imagebox_layer_draw ( VikImageboxLayer *vil, gpointer data )
   gint vp_box_x2 = vik_viewport_get_width(vp) + VIK_IMAGEBOX_CLIP_ALLOWANCE;
   gint vp_box_y2 = vik_viewport_get_height(vp) + VIK_IMAGEBOX_CLIP_ALLOWANCE;
 
-  // it's completely north of screen, west of screen, east of screen, south of screen.
+  // IT DOESNT NEED OT BE DRAW IF it's completely north of screen, west of screen, east of screen, south of screen.
   if ( x2 < vp_box_x1 || y2 < vp_box_y1 || x1 > vp_box_x2 || y1 > vp_box_y2 )
-    return;
-  // OR the screen is completely inside it.
-  if ( x1 < vp_box_x1 && y1 < vp_box_y1 && x2 > vp_box_x2 && y2 > vp_box_y2 )
-    return;
+    return; // compass rose doesn't need to be drawn either in this case
 
-  // otherwise one of the lines goes thru it. clip coordinates (VikViewport has internal clipping of 9px) and draw it
-  x1 = MAX(x1, vp_box_x1);
-  y1 = MAX(y1, vp_box_y1);
-  x2 = MIN(x2, vp_box_x2);
-  y2 = MIN(y2, vp_box_y2);
-  vik_viewport_draw_rectangle(vp, vil->gc, FALSE, x1, y1, x2-x1, y2-y1);
+
+  // IT DOESNT NEED TO BE DRAWN if the image box is completely inside viewport. Compass rose might still need to be drawn.
+  if ( !( x1 < vp_box_x1 && y1 < vp_box_y1 && x2 > vp_box_x2 && y2 > vp_box_y2) ) {
+    // otherwise one of the lines goes thru it. clip coordinates (VikViewport has internal clipping of 9px) and draw it
+    gint clipped_x1 = MAX(x1, vp_box_x1);
+    gint clipped_y1 = MAX(y1, vp_box_y1);
+    gint clipped_x2 = MIN(x2, vp_box_x2);
+    gint clipped_y2 = MIN(y2, vp_box_y2);
+    vik_viewport_draw_rectangle(vp, vil->gc, FALSE, clipped_x1, clipped_y1, clipped_x2-clipped_x1, clipped_y2-clipped_y1);
+  }
+
+  // draw compass rose cross hair
+  if (imagebox_layer_has_compass_rose(vil)) {
+    gint cr_x = (x1 + x2) / 2 + vil->compass_rose_x_offset * vil->zoom_factor / vp_zoom;
+    gint cr_y = (y1 + y2) / 2 + vil->compass_rose_y_offset * vil->zoom_factor / vp_zoom;
+    
+    if (cr_x > vp_box_x1 && cr_x < vp_box_x2 && cr_y > vp_box_y1 && cr_y < vp_box_y2) {
+      vik_viewport_draw_line(vp, vil->gc, cr_x - 5, cr_y, cr_x + 5, cr_y );
+      vik_viewport_draw_line(vp, vil->gc, cr_x, cr_y - 5, cr_x, cr_y + 5);
+    }
+
+  }
 }
 
 void vik_imagebox_layer_free ( VikImageboxLayer *vil )
@@ -364,7 +386,7 @@ static void imagebox_layer_generate_map ( gpointer vil_vlp[2] )
   vik_layers_panel_draw_all ( vlp );
   vik_viewport_draw_scale ( vp );
 
-  imagemap_layer_draw_compass_rose(vil, vp);
+  imagebox_layer_draw_compass_rose(vil, vp);
 
   /* save buffer as file. */
   pixbuf_to_save = gdk_pixbuf_get_from_drawable ( NULL, GDK_DRAWABLE(vik_viewport_get_pixmap ( vp )), NULL, 0, 0, 0, 0, vil->pixels_width, vil->pixels_height);
@@ -389,12 +411,9 @@ static void imagebox_layer_generate_map ( gpointer vil_vlp[2] )
   vik_layer_emit_update_although_invisible( VIK_LAYER(vil) );
 }
 
-static void imagemap_layer_draw_compass_rose(VikImageboxLayer *vil, VikViewport *vp)
+static void imagebox_layer_draw_compass_rose(VikImageboxLayer *vil, VikViewport *vp)
 {
-  if ( vil->compass_rose_filename &&
-      ABS(vil->compass_rose_x_offset) <= vil->pixels_width &&
-      ABS(vil->compass_rose_y_offset) <= vil->pixels_height )
-  {
+  if (imagebox_layer_has_compass_rose(vil)) {
     // load file or ignore & give warning
     GError *cr_error = NULL;
     GdkPixbuf *compass_rose = gdk_pixbuf_new_from_file ( vil->compass_rose_filename, &cr_error );
