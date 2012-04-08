@@ -1,0 +1,25 @@
+
+compass rose: could make a lot of things better, but for now it has all the features I need!
+              COORD TEXT: option for boolean coords relative to center of compass rose or center of map (se can always put it in a corner)
+              COORD TEXT: option for coord text font (default sans 24)
+              COORD TEXT: draw some white underneath? maybe?
+              maybe just want to draw the rose and coordinates so we know what it will look like?
+
+bug: emit_update isn't working (when have another window on top -- try moving other windo -- viewport goes black)
+   I think this is when the ImageboxLayer is on top of all the other layers, due to the half_update stuff. not sure how to deal with this.
+regenerate all / one layer, many boxes.
+
+Include UTM Grid North-True North angle with coordinates. This is always < 3 degrees, and in the continental US always less than ~2 degrees, with the average being 1 degree off, so I'm not too worried. See code in draw_ruler for calculating base_angle (works brute-force by going north 1 km and measuring angle)
+
+---
+
+grep TODO in vikimageboxlayer.c
+
+maybe an option for shading (translucent), or only if completely in?
+  so if i'm zoomed in I can tell what's in a map.
+
+--------------
+kinda minor: don't draw include black box & cross hair of image layers (we must make imagebox layers invisible before exporting)
+jpg/png option
+
+
