@@ -41,11 +41,14 @@ static void imagebox_layer_update_gc ( VikImageboxLayer *vil, VikViewport *vp );
 static void imagebox_layer_post_read ( VikLayer *vl, VikViewport *vp, gboolean from_file );
 static void imagebox_layer_add_menu_items ( VikImageboxLayer *vil, GtkMenu *menu, gpointer vlp );
 
+static void imagemap_layer_draw_compass_rose(VikImageboxLayer *vil, VikViewport *vp);
+
 static VikLayerParamScale param_scales[] = {
   { -90, 90, 0.01, 6 },
   { -180, 180, 0.01, 6 },
   { 1, 4096, 1, 0 },
   { 1, 8192, 1, 0 },
+  { -4096, 4096, 1, 0 },
   { -4096, 4096, 1, 0 },
 };
 
@@ -59,9 +62,11 @@ static VikLayerParam imagebox_layer_params[] = {
   { "compass_rose_filename", VIK_LAYER_PARAM_STRING, VIK_LAYER_GROUP_NONE, N_("Compass rose filename (optional):"), VIK_LAYER_WIDGET_FILEENTRY },
   { "compass_rose_offset_x", VIK_LAYER_PARAM_INT, VIK_LAYER_GROUP_NONE, N_("Compass rose center X offset:"), VIK_LAYER_WIDGET_SPINBUTTON, param_scales + 4 },
   { "compass_rose_offset_y", VIK_LAYER_PARAM_INT, VIK_LAYER_GROUP_NONE, N_("Compass rose center Y offset:"), VIK_LAYER_WIDGET_SPINBUTTON, param_scales + 4 },
+  { "compass_rose_coordtext_offset_x", VIK_LAYER_PARAM_INT, VIK_LAYER_GROUP_NONE, N_("C.R. Coord Text X offset:"), VIK_LAYER_WIDGET_SPINBUTTON, param_scales + 5 },
+  { "compass_rose_coordtext_offset_y", VIK_LAYER_PARAM_INT, VIK_LAYER_GROUP_NONE, N_("C.R. Coord Text Y offset:"), VIK_LAYER_WIDGET_SPINBUTTON, param_scales + 5 },
 };
 
-enum { PARAM_FILENAME = 0, PARAM_CENTER_LAT, PARAM_CENTER_LON, PARAM_ZOOM_FACTOR, PARAM_PIXELS_WIDTH, PARAM_PIXELS_HEIGHT, PARAM_COMPASS_ROSE_FILENAME, PARAM_COMPASS_ROSE_X_OFFSET, PARAM_COMPASS_ROSE_Y_OFFSET, NUM_PARAMS };
+enum { PARAM_FILENAME = 0, PARAM_CENTER_LAT, PARAM_CENTER_LON, PARAM_ZOOM_FACTOR, PARAM_PIXELS_WIDTH, PARAM_PIXELS_HEIGHT, PARAM_COMPASS_ROSE_FILENAME, PARAM_COMPASS_ROSE_X_OFFSET, PARAM_COMPASS_ROSE_Y_OFFSET, PARAM_COMPASS_ROSE_COORDTEXT_X_OFFSET, PARAM_COMPASS_ROSE_COORDTEXT_Y_OFFSET, NUM_PARAMS };
 
 
 /* tools */
@@ -139,6 +144,7 @@ struct _VikImageboxLayer {
   guint16 zoom_factor, pixels_width, pixels_height;
   gchar *compass_rose_filename;
   gint16 compass_rose_x_offset, compass_rose_y_offset;
+  gint16 compass_rose_coordtext_x_offset, compass_rose_coordtext_y_offset;
 };
 
 GType vik_imagebox_layer_get_type ()
@@ -199,6 +205,8 @@ gboolean imagebox_layer_set_param ( VikImageboxLayer *vil, guint16 id, VikLayerP
       break;
     case PARAM_COMPASS_ROSE_X_OFFSET: vil->compass_rose_x_offset = data.i; break;
     case PARAM_COMPASS_ROSE_Y_OFFSET: vil->compass_rose_y_offset = data.i; break;
+    case PARAM_COMPASS_ROSE_COORDTEXT_X_OFFSET: vil->compass_rose_coordtext_x_offset = data.i; break;
+    case PARAM_COMPASS_ROSE_COORDTEXT_Y_OFFSET: vil->compass_rose_coordtext_y_offset = data.i; break;
   }
   return TRUE;
 }
@@ -217,6 +225,10 @@ static VikLayerParamData imagebox_layer_get_param ( VikImageboxLayer *vil, guint
     case PARAM_COMPASS_ROSE_FILENAME: rv.s = vil->compass_rose_filename ? vil->compass_rose_filename : ""; break;
     case PARAM_COMPASS_ROSE_X_OFFSET: rv.i = vil->compass_rose_x_offset; break;
     case PARAM_COMPASS_ROSE_Y_OFFSET: rv.i = vil->compass_rose_y_offset; break;
+    case PARAM_COMPASS_ROSE_COORDTEXT_X_OFFSET:
+                                      rv.i = vil->compass_rose_coordtext_x_offset;
+                                      break;
+    case PARAM_COMPASS_ROSE_COORDTEXT_Y_OFFSET: rv.i = vil->compass_rose_coordtext_y_offset; break;
   }
   return rv;
 }
@@ -239,6 +251,9 @@ VikImageboxLayer *vik_imagebox_layer_new ( )
   vil->zoom_factor = 4;
   vil->pixels_width = 1600;
   vil->pixels_height = 900;
+  vil->compass_rose_x_offset = vil->compass_rose_y_offset = 0;
+  vil->compass_rose_coordtext_x_offset = -80;
+  vil->compass_rose_coordtext_y_offset = -140;
   return vil;
 }
 
@@ -349,26 +364,7 @@ static void imagebox_layer_generate_map ( gpointer vil_vlp[2] )
   vik_layers_panel_draw_all ( vlp );
   vik_viewport_draw_scale ( vp );
 
-  if ( vil->compass_rose_filename &&
-      ABS(vil->compass_rose_x_offset) <= vil->pixels_width &&
-      ABS(vil->compass_rose_y_offset) <= vil->pixels_height )
-  {
-    // load file or ignore & give warning
-    GError *cr_error = NULL;
-    GdkPixbuf *compass_rose = gdk_pixbuf_new_from_file ( vil->compass_rose_filename, &cr_error );
-    if (cr_error) {
-      g_warning ( _("Couldn't open compass rose image file: %s"), cr_error->message );
-      g_error_free ( cr_error );
-    }
-
-    // draw onto vp at width / 2 + x_offset - filewidth / 2, height / 2 + y_offset - fileheight / 2
-    gint cr_width = gdk_pixbuf_get_width(compass_rose);
-    gint cr_height = gdk_pixbuf_get_width(compass_rose);
-    gint dest_x = vil->pixels_width / 2 + vil->compass_rose_x_offset - cr_width / 2;
-    gint dest_y = vil->pixels_height / 2 + vil->compass_rose_y_offset - cr_height / 2;
-    vik_viewport_draw_pixbuf( vp, compass_rose, 0, 0, dest_x, dest_y, cr_width, cr_height );
-    g_object_unref( G_OBJECT(compass_rose) );
-  }
+  imagemap_layer_draw_compass_rose(vil, vp);
 
   /* save buffer as file. */
   pixbuf_to_save = gdk_pixbuf_get_from_drawable ( NULL, GDK_DRAWABLE(vik_viewport_get_pixmap ( vp )), NULL, 0, 0, 0, 0, vil->pixels_width, vil->pixels_height);
@@ -392,6 +388,61 @@ static void imagebox_layer_generate_map ( gpointer vil_vlp[2] )
   // redraw everything since we've messed with the viewport.
   vik_layer_emit_update_although_invisible( VIK_LAYER(vil) );
 }
+
+static void imagemap_layer_draw_compass_rose(VikImageboxLayer *vil, VikViewport *vp)
+{
+  if ( vil->compass_rose_filename &&
+      ABS(vil->compass_rose_x_offset) <= vil->pixels_width &&
+      ABS(vil->compass_rose_y_offset) <= vil->pixels_height )
+  {
+    // load file or ignore & give warning
+    GError *cr_error = NULL;
+    GdkPixbuf *compass_rose = gdk_pixbuf_new_from_file ( vil->compass_rose_filename, &cr_error );
+    if (cr_error) {
+      g_warning ( _("Couldn't open compass rose image file: %s"), cr_error->message );
+      g_error_free ( cr_error );
+      return;
+    }
+
+    // draw onto vp at width / 2 + x_offset - filewidth / 2, height / 2 + y_offset - fileheight / 2
+    gint cr_width = gdk_pixbuf_get_width(compass_rose);
+    gint cr_height = gdk_pixbuf_get_height(compass_rose);
+    gint cr_center_x = vil->pixels_width / 2 + vil->compass_rose_x_offset;
+    gint cr_center_y = vil->pixels_height / 2 + vil->compass_rose_y_offset;
+    gint dest_x = cr_center_x - cr_width / 2;
+    gint dest_y = cr_center_y - cr_height / 2;
+    vik_viewport_draw_pixbuf( vp, compass_rose, 0, 0, dest_x, dest_y, cr_width, cr_height );
+    g_object_unref( G_OBJECT(compass_rose) );
+
+    /* Coordinate string */
+    VikCoord compass_rose_center;
+    struct LatLon compass_rose_ll;
+    vik_viewport_screen_to_coord(vp, cr_center_x, cr_center_y, &compass_rose_center);
+    vik_coord_to_latlon(&compass_rose_center, &compass_rose_ll);
+    gchar *coordinate_string = g_strdup_printf("%s%.4f\n%s%.4f",
+        compass_rose_ll.lat > 0 ? "N" : "S",
+        ABS(compass_rose_ll.lat),
+        compass_rose_ll.lon > 0 ? "E" : "W",
+        ABS(compass_rose_ll.lon)
+    );
+
+    PangoLayout *pl = gtk_widget_create_pango_layout(GTK_WIDGET(vp), NULL);
+    PangoFontDescription *pfd = pango_font_description_from_string ("Sans 20");
+    pango_layout_set_font_description (pl, pfd);
+    pango_font_description_free (pfd);
+    pango_layout_set_text(pl, coordinate_string, -1);
+
+    vik_viewport_draw_layout(vp, vil->gc,
+        cr_center_x + vil->compass_rose_coordtext_x_offset,
+        cr_center_y + vil->compass_rose_coordtext_y_offset,
+        pl
+    );
+
+    g_object_unref(pl);
+    g_free(coordinate_string);
+  }
+}
+
 
 static void imagebox_layer_add_menu_items ( VikImageboxLayer *vil, GtkMenu *menu, gpointer vlp )
 {
