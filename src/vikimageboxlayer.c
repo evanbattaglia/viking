@@ -72,10 +72,15 @@ enum { PARAM_FILENAME = 0, PARAM_CENTER_LAT, PARAM_CENTER_LON, PARAM_ZOOM_FACTOR
 /* tools */
 static gpointer imagebox_layer_move_create ( VikWindow *vw, VikViewport *vvp);
 static gboolean imagebox_layer_move_press ( VikImageboxLayer *vil, GdkEventButton *event, VikViewport *vvp );
+static gpointer imagebox_layer_compass_rose_move_create ( VikWindow *vw, VikViewport *vvp);
+static gboolean imagebox_layer_compass_rose_move_press ( VikImageboxLayer *vil, GdkEventButton *event, VikViewport *vvp );
 
 static VikToolInterface imagebox_tools[] = {
   { N_("Recenter Imagebox"), (VikToolConstructorFunc) imagebox_layer_move_create, NULL, NULL, NULL,
     (VikToolMouseFunc) imagebox_layer_move_press, NULL, NULL,
+    (VikToolKeyFunc) NULL, GDK_CURSOR_IS_PIXMAP, &cursor_geomove_pixbuf }, /* TODO: get rid of cursor_geomove_pixbuf and create an image from this. I copied this from georeflayer. */
+  { N_("Recenter Compass Rose"), (VikToolConstructorFunc) imagebox_layer_compass_rose_move_create, NULL, NULL, NULL,
+    (VikToolMouseFunc) imagebox_layer_compass_rose_move_press, NULL, NULL,
     (VikToolKeyFunc) NULL, GDK_CURSOR_IS_PIXMAP, &cursor_geomove_pixbuf }, /* TODO: get rid of cursor_geomove_pixbuf and create an image from this. I copied this from georeflayer. */
 };
 
@@ -481,7 +486,6 @@ static void imagebox_layer_add_menu_items ( VikImageboxLayer *vil, GtkMenu *menu
   gtk_widget_show ( item );
 }
 
-
 static gpointer imagebox_layer_move_create ( VikWindow *vw, VikViewport *vvp)
 {
   return vvp;
@@ -498,3 +502,24 @@ static gboolean imagebox_layer_move_press ( VikImageboxLayer *vil, GdkEventButto
   vik_layer_emit_update ( VIK_LAYER(vil), FALSE );
   return TRUE; /* I didn't move anything on this layer! */
 }
+
+static gpointer imagebox_layer_compass_rose_move_create ( VikWindow *vw, VikViewport *vvp)
+{
+  return vvp;
+}
+
+static gboolean imagebox_layer_compass_rose_move_press ( VikImageboxLayer *vil, GdkEventButton *event, VikViewport *vvp )
+{
+  if (!vil || vil->vl.type != VIK_LAYER_IMAGEBOX || !vil->compass_rose_filename || !*vil->compass_rose_filename)
+    return FALSE;
+
+  VikCoord imagebox_center;
+  gint x, y;
+  vik_coord_load_from_latlon(&imagebox_center, vik_viewport_get_coord_mode(vvp), &(vil->center));
+  vik_viewport_coord_to_screen(vvp, &imagebox_center, &x, &y);
+  vil->compass_rose_x_offset = (event->x - x) * vik_viewport_get_xmpp(vvp) / vil->zoom_factor;
+  vil->compass_rose_y_offset = (event->y - y) * vik_viewport_get_ympp(vvp) / vil->zoom_factor;
+  vik_layer_emit_update ( VIK_LAYER(vil), FALSE );
+  return TRUE; /* I didn't move anything on this layer! */
+}
+
