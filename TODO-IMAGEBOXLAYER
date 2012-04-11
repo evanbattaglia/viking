@@ -11,6 +11,9 @@ regenerate all / one layer, many boxes.
 
 Include UTM Grid North-True North angle with coordinates. This is always < 3 degrees, and in the continental US always less than ~2 degrees, with the average being 1 degree off, so I'm not too worried. See code in draw_ruler for calculating base_angle (works brute-force by going north 1 km and measuring angle)
 
+icons for the two new tools
+
+
 ---
 
 grep TODO in vikimageboxlayer.c
@@ -22,4 +25,5 @@ maybe an option for shading (translucent), or only if completely in?
 kinda minor: don't draw include black box & cross hair of image layers (we must make imagebox layers invisible before exporting)
 jpg/png option
 
+maybe make sample-compassrose.png the default so you don't have to specify the location. and distribute in in /usr/share or compile it in.
 
