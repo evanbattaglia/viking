@@ -29,13 +29,13 @@ void vik_trackgraph_add_edge(VikTrackgraph *tg, VikTrackgraphNode *n1, VikTrackg
 
 typedef enum { VIK_TRACKGRAPH_NODE_START = 0, VIK_TRACKGRAPH_NODE_END } VikTrackgraphNodeEndpoint;
 typedef struct {
-  gchar *track_name,
+  const gchar *track_name;
   VikTrackgraphNodeEndpoint is_endpoint;
 } VikTrackgraphNode;
 
 VikTrackgraphNode *vik_trackgraph_node_new(const gchar *track_name, VikTrackgraphNodeEndpoint ep); /* can be freed, or added to a trackgraph */
 
-/* returns an array of VikTrackgraph nodes. Free the array without freeing the data. saves distance to total_distance */
-GArray *vik_trackgraph_dijkstra(VikTrackgraphNode *start, VikTrackgraphNode *end, gdouble *total_distance)
+/* returns an list of VikTrackgraph nodes. Free the list without freeing the data. saves distance to total_distance */
+GList *vik_trackgraph_dijkstra(VikTrackGraph *tg, VikTrackgraphNode *start, VikTrackgraphNode *end, gdouble *total_distance);
 
 #endif
