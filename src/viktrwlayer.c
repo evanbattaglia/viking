@@ -5746,6 +5746,8 @@ static void track_connector_add_track_to_trackgraph(gchar *name, VikTrack *track
 {
   VikTrackgraphNode *node_start = vik_trackgraph_node_new(name, VIK_TRACKGRAPH_NODE_START);
   VikTrackgraphNode *node_end = vik_trackgraph_node_new(name, VIK_TRACKGRAPH_NODE_END);
+  vik_trackgraph_add_node(vtg, node_start); // TODOTRACKCONNECTOR: make implicit in in add_edge
+  vik_trackgraph_add_node(vtg, node_end);
   vik_trackgraph_add_edge(vtg, node_start, node_end, vik_track_get_length(track));
   // TODOTRACKCONNECTOR maybe gaps, or make sure there are no gaps. Tracks with segments are a stupid idea. really should do this for teach segment
 }
@@ -5912,7 +5914,7 @@ static VikTrack *track_connector(GHashTable *tracks, VikCoord *start, VikCoord *
 
   // do dijkstra's and construct a track based on each trackpoint.
   VikTrackgraphNode *start_dijkstra = vik_trackgraph_node_new(closest_start_name, closest_start_nodeendpoint);
-  VikTrackgraphNode *end_dijkstra = vik_trackgraph_node_new(closest_start_name, closest_start_nodeendpoint);
+  VikTrackgraphNode *end_dijkstra = vik_trackgraph_node_new(closest_end_name, closest_end_nodeendpoint);
   gdouble final_dist; // TODOTRACKCONNECTOR, since we're constructing the track, we probably don't need the final_dist. maybe for quick-moves
   GList *dijkstra = vik_trackgraph_dijkstra(vtg, start_dijkstra, end_dijkstra, &final_dist);
   vik_trackgraph_node_free(start_dijkstra);
