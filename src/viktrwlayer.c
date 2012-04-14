@@ -36,6 +36,9 @@
 #include "vikmapslayer.h"
 #include "viktrwlayer_tpwin.h"
 #include "viktrwlayer_propwin.h"
+
+#include "viktrackgraph.h"
+
 #ifdef VIK_CONFIG_GEOTAG
 #include "viktrwlayer_geotag.h"
 #include "geotag_exif.h"
@@ -175,6 +178,13 @@ struct _VikTrwLayer {
   VikTrack *route_finder_current_track;
   gboolean route_finder_append;
 
+
+  /* track connector tool... to be merged w/ route finder? */
+  gboolean track_connector_started;
+  VikCoord track_connector_coord;
+  VikTrack *track_connector_current_track;
+
+
   gboolean drawlabels;
   gboolean drawimages;
   guint8 image_alpha;
@@ -310,6 +320,8 @@ static gpointer tool_new_waypoint_create ( VikWindow *vw, VikViewport *vvp);
 static gboolean tool_new_waypoint_click ( VikTrwLayer *vtl, GdkEventButton *event, VikViewport *vvp );
 static gpointer tool_route_finder_create ( VikWindow *vw, VikViewport *vvp);
 static gboolean tool_route_finder_click ( VikTrwLayer *vtl, GdkEventButton *event, VikViewport *vvp );
+static gpointer tool_track_connector_create ( VikWindow *vw, VikViewport *vvp);
+static gboolean tool_track_connector_click ( VikTrwLayer *vtl, GdkEventButton *event, VikViewport *vvp );
 
 
 static void cached_pixbuf_free ( CachedPixbuf *cp );
@@ -354,6 +366,9 @@ static VikToolInterface trw_layer_tools[] = {
 
   { N_("Route Finder"),  (VikToolConstructorFunc) tool_route_finder_create,  NULL, NULL, NULL,
     (VikToolMouseFunc) tool_route_finder_click, NULL, NULL, (VikToolKeyFunc) NULL, GDK_CURSOR_IS_PIXMAP, &cursor_route_finder_pixbuf },
+
+  { N_("Track Connector"),  (VikToolConstructorFunc) tool_track_connector_create,  NULL, NULL, NULL,
+    (VikToolMouseFunc) tool_track_connector_click, NULL, NULL, (VikToolKeyFunc) NULL, GDK_CURSOR_IS_PIXMAP, &cursor_route_finder_pixbuf }, // TODOTRACKCONNECTOR: pixbuf
 };
 enum { TOOL_CREATE_WAYPOINT=0, TOOL_CREATE_TRACK, TOOL_BEGIN_TRACK, TOOL_EDIT_WAYPOINT, TOOL_EDIT_TRACKPOINT, TOOL_SHOW_PICTURE, NUM_TOOLS };
 
@@ -968,6 +983,9 @@ static VikTrwLayer* trw_layer_new ( gint drawmode )
   rv->route_finder_added_track_name = NULL;
   rv->route_finder_current_track = NULL;
   rv->route_finder_append = FALSE;
+
+  rv->track_connector_started = FALSE;
+  rv->track_connector_current_track = NULL;
 
   rv->waypoint_rightclick = FALSE;
   rv->last_tpl = NULL;
@@ -3006,6 +3024,8 @@ gboolean vik_trw_layer_delete_track ( VikTrwLayer *vtl, const gchar *trk_name )
     }
     if ( t == vtl->route_finder_current_track )
       vtl->route_finder_current_track = NULL;
+    if ( t == vtl->track_connector_current_track ) // TODOTRACKCONNECTOR: not used yet so use or remove
+      vtl->route_finder_current_track = NULL;
 
     /* could be current_tp, so we have to check */
     trw_layer_cancel_tps_of_track ( vtl, trk_name );
@@ -3057,6 +3077,7 @@ void vik_trw_layer_delete_all_tracks ( VikTrwLayer *vtl )
 
   vtl->current_track = NULL;
   vtl->route_finder_current_track = NULL;
+  vtl->track_connector_current_track = NULL;
   if (vtl->current_tp_track_name)
     trw_layer_cancel_current_tp(vtl, FALSE);
   if (vtl->last_tp_track_name)
@@ -5634,7 +5655,6 @@ static gboolean tool_edit_trackpoint_release ( VikTrwLayer *vtl, GdkEventButton 
   return FALSE;
 }
 
-
 /*** Route Finder ***/
 static gpointer tool_route_finder_create ( VikWindow *vw, VikViewport *vvp)
 {
@@ -5719,6 +5739,230 @@ static gboolean tool_route_finder_click ( VikTrwLayer *vtl, GdkEventButton *even
   }
   return TRUE;
 }
+
+/*** Track Connector ***/
+
+static void track_connector_add_track_to_trackgraph(gchar *name, VikTrack *track, VikTrackgraph *vtg)
+{
+  VikTrackgraphNode *node_start = vik_trackgraph_node_new(name, VIK_TRACKGRAPH_NODE_START);
+  VikTrackgraphNode *node_end = vik_trackgraph_node_new(name, VIK_TRACKGRAPH_NODE_END);
+  vik_trackgraph_add_edge(vtg, node_start, node_end, vik_track_get_length(track));
+  // TODOTRACKCONNECTOR maybe gaps, or make sure there are no gaps. Tracks with segments are a stupid idea. really should do this for teach segment
+}
+
+static void track_connector_add_track_links_to_trackgraph2(gchar *name, VikTrack *track, gpointer pass_along[3])
+{
+  // TODOIMAGETRACKCONNECTOR: horribly inefficient. we add each track twice and find the endpoint twice.
+  // but we will switch to a non O(n^2) way soon anyway...
+  gchar *other_name = (gchar *) pass_along[2];
+  if ( (!track->trackpoints) || name == other_name )
+    return;
+  VikTrackpoint *start = VIK_TRACKPOINT(track->trackpoints->data);
+  VikTrackpoint *end = VIK_TRACKPOINT(g_list_last(track->trackpoints)->data);
+
+  VikTrackpoint *other_start = VIK_TRACKPOINT(pass_along[3]);
+  VikTrackpoint *other_end = VIK_TRACKPOINT(pass_along[4]);
+
+  VikTrackgraph *vtg = VIK_TRACKGRAPH(pass_along[0]);
+  gdouble dist_allowance = *((gdouble *)pass_along[1]);
+  gdouble dist;
+
+  // TODOTRACKCONNECTOR: dry up, but again we'll probably use a totally different technique.
+  dist = vik_coord_diff(&(start->coord), &(other_start->coord));
+  if ( dist <= dist_allowance ) {
+    VikTrackgraphNode *node1 = vik_trackgraph_node_new(name, VIK_TRACKGRAPH_NODE_START);
+    VikTrackgraphNode *node2 = vik_trackgraph_node_new(other_name, VIK_TRACKGRAPH_NODE_START);
+    vik_trackgraph_add_edge(vtg, node1, node2, dist);
+    vik_trackgraph_node_free(node1);
+    vik_trackgraph_node_free(node2);
+  }
+
+  if (other_end != other_start) {
+    dist = vik_coord_diff(&(start->coord), &(other_end->coord));
+    if ( dist <= dist_allowance ) {
+      VikTrackgraphNode *node1 = vik_trackgraph_node_new(name, VIK_TRACKGRAPH_NODE_START);
+      VikTrackgraphNode *node2 = vik_trackgraph_node_new(other_name, VIK_TRACKGRAPH_NODE_END);
+      vik_trackgraph_add_edge(vtg, node1, node2, dist);
+      vik_trackgraph_node_free(node1);
+      vik_trackgraph_node_free(node2);
+    }
+  }
+
+  if (end != start) {
+    dist = vik_coord_diff(&(end->coord), &(other_start->coord));
+    if ( dist <= dist_allowance ) {
+      VikTrackgraphNode *node1 = vik_trackgraph_node_new(name, VIK_TRACKGRAPH_NODE_END);
+      VikTrackgraphNode *node2 = vik_trackgraph_node_new(other_name, VIK_TRACKGRAPH_NODE_START);
+      vik_trackgraph_add_edge(vtg, node1, node2, dist);
+      vik_trackgraph_node_free(node1);
+      vik_trackgraph_node_free(node2);
+    }
+  }
+
+  if (end != start && other_end != other_start) {
+    dist = vik_coord_diff(&(end->coord), &(other_end->coord));
+    if ( dist <= dist_allowance ) {
+      VikTrackgraphNode *node1 = vik_trackgraph_node_new(name, VIK_TRACKGRAPH_NODE_END);
+      VikTrackgraphNode *node2 = vik_trackgraph_node_new(other_name, VIK_TRACKGRAPH_NODE_END);
+      vik_trackgraph_add_edge(vtg, node1, node2, dist);
+      vik_trackgraph_node_free(node1);
+      vik_trackgraph_node_free(node2);
+    }
+  }
+
+}
+
+static void track_connector_add_track_links_to_trackgraph(gchar *name, VikTrack *track, gpointer pass_along[3])
+{
+  if (!track->trackpoints)
+    return;
+  VikTrackpoint *start = VIK_TRACKPOINT(track->trackpoints->data);
+  VikTrackpoint *end = VIK_TRACKPOINT(g_list_last(track->trackpoints)->data);
+
+  gpointer pass_along2[5];
+  pass_along2[0] = pass_along[0]; // trackgraph
+  pass_along2[1] = pass_along[1]; // &dist_allowance
+  pass_along2[2] = name;
+  pass_along2[3] = start;
+  pass_along2[4] = end;
+
+  g_hash_table_foreach((GHashTable *)(pass_along[2]), (GHFunc) track_connector_add_track_links_to_trackgraph2, pass_along2);
+}
+
+static void track_connector_find_nearest(gchar *name, VikTrack *track, gpointer pass_along[8])
+{
+  if (!track->trackpoints)
+    return;
+  VikTrackpoint *start = VIK_TRACKPOINT(track->trackpoints->data);
+  VikTrackpoint *end = VIK_TRACKPOINT(g_list_last(track->trackpoints)->data);
+
+  VikCoord *click_start = (VikCoord *)pass_along[0];
+  gdouble *click_start_closest = (gdouble *) pass_along[1];
+  gchar **click_start_closest_name = (gchar **) pass_along[2];
+  VikTrackgraphNodeEndpoint *click_start_closest_nodeendpoint = (VikTrackgraphNodeEndpoint *) pass_along[3];
+  VikCoord *click_end = (VikCoord *)pass_along[4];
+  gdouble *click_end_closest = (gdouble *) pass_along[5];
+  gchar **click_end_closest_name = (gchar **) pass_along[6];
+  VikTrackgraphNodeEndpoint *click_end_closest_nodeendpoint = (VikTrackgraphNodeEndpoint *) pass_along[7];
+
+  gdouble dist;
+
+  dist = vik_coord_diff(&(start->coord), click_start);
+  if ( !*click_start_closest_name || dist < *click_start_closest ) {
+    *click_start_closest = dist;
+    *click_start_closest_name = name;
+    *click_start_closest_nodeendpoint = VIK_TRACKGRAPH_NODE_START;
+  }
+  dist = vik_coord_diff(&(end->coord), click_start);
+  if ( dist < *click_start_closest ) {
+    *click_start_closest = dist;
+    *click_start_closest_name = name;
+    *click_start_closest_nodeendpoint = VIK_TRACKGRAPH_NODE_END;
+  }
+  dist = vik_coord_diff(&(start->coord), click_end);
+  if ( !*click_end_closest_name || dist < *click_end_closest ) {
+    *click_end_closest = dist;
+    *click_end_closest_name = name;
+    *click_end_closest_nodeendpoint = VIK_TRACKGRAPH_NODE_START;
+  }
+  dist = vik_coord_diff(&(end->coord), click_end);
+  if ( dist < *click_end_closest ) {
+    *click_end_closest = dist;
+    *click_end_closest_name = name;
+    *click_end_closest_nodeendpoint = VIK_TRACKGRAPH_NODE_END;
+  }
+}
+
+
+static VikTrack *track_connector(GHashTable *tracks, VikCoord *start, VikCoord *end)
+{
+  // TODOTRACKCONNECTOR: return if there are no tracks.
+  gdouble dist_allowance = 100.0; /* meters */
+  VikTrackgraph *vtg = vik_trackgraph_new();
+
+  // add all endpoints as nodes and all tracks as edges
+  g_hash_table_foreach(tracks, (GHFunc) track_connector_add_track_to_trackgraph, vtg);
+
+  // check all endpoints -- to see which are nearby. yeah, O(n^2) for now. calculate distances and add edges
+  // TODOTRACKCONNECTOR: make a hashtable based on latlon & just check adjacent boxes
+  gpointer pass_along[3];
+  pass_along[0] = vtg;
+  pass_along[1] = &dist_allowance;
+  pass_along[2] = tracks;
+  g_hash_table_foreach(tracks, (GHFunc) track_connector_add_track_links_to_trackgraph, pass_along);
+  
+  // find nearest endpoint for start and end
+  gpointer pass_along2[8];
+  gdouble closest_start = -1;
+  gdouble closest_end = -1;
+  gchar *closest_start_name = NULL;
+  gchar *closest_end_name = NULL;
+  VikTrackgraphNodeEndpoint closest_start_nodeendpoint;
+  VikTrackgraphNodeEndpoint closest_end_nodeendpoint;
+  
+  pass_along2[0] = start;
+  pass_along2[1] = &closest_start;
+  pass_along2[2] = &closest_start_name;
+  pass_along2[3] = &closest_start_nodeendpoint;
+  pass_along2[4] = end;
+  pass_along2[5] = &closest_end;
+  pass_along2[6] = &closest_end_name;
+  pass_along2[7] = &closest_end_nodeendpoint;
+  g_hash_table_foreach(tracks, (GHFunc) track_connector_find_nearest, pass_along2);
+
+  // do dijkstra's and construct a track based on each trackpoint.
+  VikTrackgraphNode *start_dijkstra = vik_trackgraph_node_new(closest_start_name, closest_start_nodeendpoint);
+  VikTrackgraphNode *end_dijkstra = vik_trackgraph_node_new(closest_start_name, closest_start_nodeendpoint);
+  gdouble final_dist; // TODOTRACKCONNECTOR, since we're constructing the track, we probably don't need the final_dist. maybe for quick-moves
+  GList *dijkstra = vik_trackgraph_dijkstra(vtg, start_dijkstra, end_dijkstra, &final_dist);
+  vik_trackgraph_node_free(start_dijkstra);
+  vik_trackgraph_node_free(end_dijkstra);
+
+  VikTrack *rv = vik_track_new();
+  GList *iter;
+  for (iter = dijkstra; iter && iter->next; iter = iter->next) {
+    /// TODOTRACKCONNECTOR: make a track append all the trackpoints...
+    VikTrackgraphNode *this = VIK_TRACKGRAPH_NODE(iter->data); 
+    VikTrackgraphNode *next = VIK_TRACKGRAPH_NODE(iter->next->data);
+    if (this->track_name == next->track_name)
+    {
+      VikTrack *tmp = vik_track_copy(VIK_TRACK(g_hash_table_lookup(tracks, this->track_name)));
+      if (this->is_endpoint == VIK_TRACKGRAPH_NODE_END)
+        vik_track_reverse(tmp);
+      vik_track_steal_and_append_trackpoints(rv, tmp);
+      vik_track_free(tmp);
+    }
+  }
+  g_list_free(dijkstra);
+  vik_trackgraph_free_all(vtg);
+  return rv;
+}
+
+static gpointer tool_track_connector_create ( VikWindow *vw, VikViewport *vvp)
+{
+  return vvp;
+}
+
+static gboolean tool_track_connector_click ( VikTrwLayer *vtl, GdkEventButton *event, VikViewport *vvp )
+{
+  if (!vtl)
+    return FALSE;
+  VikCoord tmp;
+  vik_viewport_screen_to_coord ( vvp, event->x, event->y, &tmp );
+  if ( !vtl->track_connector_started ) {
+    vtl->track_connector_coord = tmp;
+    vtl->track_connector_started = TRUE;
+      // TODOTRACKCONNECTOR: make use of vtl->track_connector_current_track
+  } else {
+    vtl->track_connector_started = FALSE;
+    VikTrack *new_track = track_connector(vtl->tracks, &vtl->track_connector_coord, &tmp);
+    vik_trw_layer_add_track(vtl, "connected", new_track);
+    // TODOTRACKCONNECTOR: emit update
+  }
+
+  return TRUE;
+}
+
 
 /*** Show picture ****/
 

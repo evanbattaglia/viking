@@ -13,7 +13,7 @@ typedef struct {
 } NodeAndDistance;
 
 static guint vik_trackgraph_node_hash(VikTrackgraphNode *node) {
-  return 33 * g_int_hash((gconstpointer)node->is_endpoint) + g_str_hash(node->track_name);
+  return 33 * node->is_endpoint + g_str_hash(node->track_name);
 }
 static gboolean vik_trackgraph_node_equal(VikTrackgraphNode *node1, VikTrackgraphNode *node2) {
   return g_str_equal(node1->track_name, node2->track_name) && node1->is_endpoint == node2->is_endpoint;
@@ -31,6 +31,7 @@ VikTrackgraph *vik_trackgraph_new()
   VikTrackgraph *rv = g_malloc(sizeof(VikTrackgraph));
   rv->adjacency_lists = g_hash_table_new_full((GHashFunc) vik_trackgraph_node_hash, (GEqualFunc) vik_trackgraph_node_equal,
                                               g_free /* to free node */, (GDestroyNotify) adjacency_list_free);
+  return rv;
 }
 
 void vik_trackgraph_free_all(VikTrackgraph *tg)
@@ -76,6 +77,12 @@ VikTrackgraphNode *vik_trackgraph_node_new(const gchar *track_name, VikTrackgrap
   VikTrackgraphNode *rv = g_malloc(sizeof(VikTrackgraphNode));
   rv->track_name = track_name; /* TODO: copy and free this with the node */
   rv->is_endpoint = ep;
+  return rv;
+}
+
+void vik_trackgraph_node_free(VikTrackgraphNode *n)
+{
+  g_free(n);
 }
 
 
@@ -145,9 +152,7 @@ guint dijkstra_heap_hash_sift_up(DijkstraHeapHash *dhh, guint index)
 
 DijkstraHeapHash *dijkstra_heap_hash_new(GList *data, gdouble default_weight)
 {
-  guint heap_length = 0;
-  for (GList *iter = data; iter; iter = iter->next)
-    heap_length++;
+  guint heap_length = g_list_length(data);
 
   DijkstraHeapHash *dhh = g_malloc(sizeof(DijkstraHeapHash));
   dhh->heap_data = g_malloc(sizeof(gpointer) * heap_length);
@@ -155,11 +160,14 @@ DijkstraHeapHash *dijkstra_heap_hash_new(GList *data, gdouble default_weight)
   dhh->heap_positions = g_hash_table_new((GHashFunc) g_direct_hash, (GEqualFunc) g_int_equal);
 
   GList *iter = data;
-  for (guint i = 0; iter; iter = iter->next, i++) {
+  guint i;
+  for (i = 0; iter; iter = iter->next, i++) {
     dhh->heap_data[i] = iter->data;
     dhh->heap_weights[i] = default_weight;
     g_hash_table_insert(dhh->heap_positions, dhh->heap_data[i], GINT_TO_POINTER(i));
   }
+
+  return dhh;
 }
 
 void dijkstra_heap_hash_pop(DijkstraHeapHash *dhh, gpointer *node, gdouble *weight)
@@ -210,8 +218,15 @@ void dijkstra_heap_hash_free(DijkstraHeapHash *dhh)
 }
 
 
-GList *vik_trackgraph_dijkstra(VikTrackgraph *tg, VikTrackgraphNode *start, VikTrackgraphNode *end, gdouble *total_distance)
+GList *vik_trackgraph_dijkstra(VikTrackgraph *tg, VikTrackgraphNode *start_node, VikTrackgraphNode *end_node, gdouble *total_distance)
 {
+  // get canonical nodes used in the graph
+  VikTrackgraphNode *start;
+  VikTrackgraphNode *end;
+  g_assert(g_hash_table_lookup_extended(tg->adjacency_lists, start_node, (gpointer *) &start, NULL));
+  g_assert(g_hash_table_lookup_extended(tg->adjacency_lists, end_node, (gpointer *) &end, NULL));
+
+
   // distance from from source to each node
   GHashTable *previous = g_hash_table_new(g_direct_hash, g_direct_equal);
   // default weights are infinity, except
@@ -239,7 +254,8 @@ GList *vik_trackgraph_dijkstra(VikTrackgraph *tg, VikTrackgraphNode *start, VikT
     }
 
     GArray *neighbors = g_hash_table_lookup(tg->adjacency_lists, current_node);
-    for (int i = 0; i < neighbors->len; i++) {
+    gint i;
+    for (i = 0; i < neighbors->len; i++) {
       NodeAndDistance *neighbor_and_distance = g_array_index(neighbors, NodeAndDistance *, i);
       VikTrackgraphNode *neighbor = neighbor_and_distance->node;
       gdouble dist = dijkstra_heap_hash_get_weight(heap_hash, neighbor_and_distance->node);
@@ -250,6 +266,8 @@ GList *vik_trackgraph_dijkstra(VikTrackgraph *tg, VikTrackgraphNode *start, VikT
       }
     }
   }
+  g_assert(FALSE); // should never get here
+  return NULL;
 }
 
 

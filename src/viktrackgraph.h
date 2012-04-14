@@ -21,21 +21,27 @@
 #ifndef _VIKING_TRACKGRAPH_H
 #define _VIKING_TRACKGRAPH_H
 
-typedef struct _VikTrackgraph VikTrackgraph;
-VikTrackgraph *vik_trackgraph_new();
-void vik_trackgraph_free_all(VikTrackgraph *trackgraph); /* Frees graph and all nodes and edges */
-void vik_trackgraph_add_node(VikTrackgraph *tg, VikTrackgraphNode *n);
-void vik_trackgraph_add_edge(VikTrackgraph *tg, VikTrackgraphNode *n1, VikTrackgraphNode *n2, gdouble distance);
+#define VIK_TRACKGRAPH(x) ((VikTrackgraph *)(x))
+#define VIK_TRACKGRAPH_NODE(x) ((VikTrackgraphNode *)(x))
 
+typedef struct _VikTrackgraph VikTrackgraph;
 typedef enum { VIK_TRACKGRAPH_NODE_START = 0, VIK_TRACKGRAPH_NODE_END } VikTrackgraphNodeEndpoint;
 typedef struct {
   const gchar *track_name;
   VikTrackgraphNodeEndpoint is_endpoint;
 } VikTrackgraphNode;
 
+
+VikTrackgraph *vik_trackgraph_new();
+void vik_trackgraph_free_all(VikTrackgraph *trackgraph); /* Frees graph and all nodes and edges */
+void vik_trackgraph_add_node(VikTrackgraph *tg, VikTrackgraphNode *n);
+void vik_trackgraph_add_edge(VikTrackgraph *tg, VikTrackgraphNode *n1, VikTrackgraphNode *n2, gdouble distance);
+
+
 VikTrackgraphNode *vik_trackgraph_node_new(const gchar *track_name, VikTrackgraphNodeEndpoint ep); /* can be freed, or added to a trackgraph */
+void vik_trackgraph_node_free(VikTrackgraphNode *n);
 
 /* returns an list of VikTrackgraph nodes. Free the list without freeing the data. saves distance to total_distance */
-GList *vik_trackgraph_dijkstra(VikTrackGraph *tg, VikTrackgraphNode *start, VikTrackgraphNode *end, gdouble *total_distance);
+GList *vik_trackgraph_dijkstra(VikTrackgraph *tg, VikTrackgraphNode *start, VikTrackgraphNode *end, gdouble *total_distance);
 
 #endif
