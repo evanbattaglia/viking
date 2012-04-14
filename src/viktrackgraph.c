@@ -58,7 +58,7 @@ static NodeAndDistance *node_and_distance_new(VikTrackgraphNode *node, gdouble d
 }
 
 /* n1 and n2 have to be in hashtable (value-wise, not pointer-wise) */
-void vik_trackgraph_add_edge(VikTrackgraph *tg, VikTrackgraphNode *n1, VikTrackgraphNode *n2, gdouble distance)
+void vik_trackgraph_add_edge(VikTrackgraph *tg, const VikTrackgraphNode *n1, const VikTrackgraphNode *n2, gdouble distance)
 {
   VikTrackgraphNode *orig_n1, *orig_n2;
   GArray *array_n1, *array_n2;
@@ -75,7 +75,7 @@ void vik_trackgraph_add_edge(VikTrackgraph *tg, VikTrackgraphNode *n1, VikTrackg
 VikTrackgraphNode *vik_trackgraph_node_new(const gchar *track_name, VikTrackgraphNodeEndpoint ep)
 {
   VikTrackgraphNode *rv = g_malloc(sizeof(VikTrackgraphNode));
-  rv->track_name = track_name; /* TODO: copy and free this with the node */
+  rv->track_name = track_name; /* TODO: copy and free this with the node? */
   rv->is_endpoint = ep;
   return rv;
 }
@@ -162,7 +162,6 @@ DijkstraHeapHash *dijkstra_heap_hash_new(GList *data, gdouble default_weight)
   GList *iter = data;
   guint i;
   for (i = 0; iter; iter = iter->next, i++) {
-    g_print("adding %s, %d\n", VIK_TRACKGRAPH_NODE(iter->data)->track_name, VIK_TRACKGRAPH_NODE(iter->data)->is_endpoint);
     dhh->heap_data[i] = iter->data;
     dhh->heap_weights[i] = default_weight;
     g_hash_table_insert(dhh->heap_positions, dhh->heap_data[i], GINT_TO_POINTER(i));
@@ -189,7 +188,6 @@ void dijkstra_heap_hash_pop(DijkstraHeapHash *dhh, gpointer *node, gdouble *weig
 gdouble dijkstra_heap_hash_get_weight(DijkstraHeapHash *dhh, gpointer data)
 {
   guint index;
-  g_print("looking for %s, %d\n", VIK_TRACKGRAPH_NODE(data)->track_name, VIK_TRACKGRAPH_NODE(data)->is_endpoint);
   gboolean found_index = g_hash_table_lookup_extended(dhh->heap_positions, data, NULL, (gpointer *) &index);
   g_assert(found_index);
 
@@ -198,7 +196,7 @@ gdouble dijkstra_heap_hash_get_weight(DijkstraHeapHash *dhh, gpointer data)
 
 gboolean dijkstra_heap_hash_includes(DijkstraHeapHash *dhh, gpointer data)
 {
-  g_hash_table_lookup_extended(dhh->heap_positions, data, NULL, NULL);
+  return g_hash_table_lookup_extended(dhh->heap_positions, data, NULL, NULL);
 }
 
 void dijkstra_heap_hash_update(DijkstraHeapHash *dhh, gpointer data, gdouble new_priority)
@@ -248,15 +246,20 @@ GList *vik_trackgraph_dijkstra(VikTrackgraph *tg, VikTrackgraphNode *start_node,
     VikTrackgraphNode *current_node;
     dijkstra_heap_hash_pop(heap_hash, (gpointer *) &current_node, &current_node_distance);
     
-    if (current_node_distance == DIJKSTRA_INFINITY)
-      return NULL; // TODO: free what needs to be freed
+    if (current_node_distance == DIJKSTRA_INFINITY) {
+      g_hash_table_destroy(previous);
+      dijkstra_heap_hash_free(heap_hash);
+      return NULL; // unreachable
+    }
     if (end == current_node) {
       *total_distance = current_node_distance;
       GList *rv = g_list_prepend(NULL, end);
       VikTrackgraphNode *iter = end;
       while (iter != start)
         rv = g_list_prepend(rv, iter = g_hash_table_lookup(previous, iter));
-      // TODO: free what needs to be freed
+
+      g_hash_table_destroy(previous);
+      dijkstra_heap_hash_free(heap_hash);
       return rv;
     }
 

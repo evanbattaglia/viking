@@ -34,8 +34,8 @@ typedef struct {
 
 VikTrackgraph *vik_trackgraph_new();
 void vik_trackgraph_free_all(VikTrackgraph *trackgraph); /* Frees graph and all nodes and edges */
-void vik_trackgraph_add_node(VikTrackgraph *tg, VikTrackgraphNode *n);
-void vik_trackgraph_add_edge(VikTrackgraph *tg, VikTrackgraphNode *n1, VikTrackgraphNode *n2, gdouble distance);
+void vik_trackgraph_add_node(VikTrackgraph *tg, VikTrackgraphNode *n); // after adding node here, it will be freed with vik_trackgraph_free_all
+void vik_trackgraph_add_edge(VikTrackgraph *tg, const VikTrackgraphNode *n1, const VikTrackgraphNode *n2, gdouble distance); // you should free the nodes you send in here yourself
 
 
 VikTrackgraphNode *vik_trackgraph_node_new(const gchar *track_name, VikTrackgraphNodeEndpoint ep); /* can be freed, or added to a trackgraph */

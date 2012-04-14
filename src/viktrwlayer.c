@@ -5921,6 +5921,7 @@ static VikTrack *track_connector(GHashTable *tracks, VikCoord *start, VikCoord *
   vik_trackgraph_node_free(end_dijkstra);
 
   VikTrack *rv = vik_track_new();
+  rv->visible = TRUE;
   GList *iter;
   for (iter = dijkstra; iter && iter->next; iter = iter->next) {
     /// TODOTRACKCONNECTOR: make a track append all the trackpoints...
@@ -5958,7 +5959,7 @@ static gboolean tool_track_connector_click ( VikTrwLayer *vtl, GdkEventButton *e
   } else {
     vtl->track_connector_started = FALSE;
     VikTrack *new_track = track_connector(vtl->tracks, &vtl->track_connector_coord, &tmp);
-    vik_trw_layer_add_track(vtl, "connected", new_track);
+    vik_trw_layer_add_track(vtl, g_strdup("connected"), new_track);
     // TODOTRACKCONNECTOR: emit update
   }
 
