@@ -55,6 +55,7 @@ libviking_a_SOURCES = \
 	globals.c globals.h \
 	viking.h mapcoord.h config.h \
 	viktrack.c viktrack.h \
+	viktrackgraph.c viktrackgraph.h \
 	vikwaypoint.c vikwaypoint.h \
 	clipboard.c clipboard.h \
 	coords.c coords.h \
