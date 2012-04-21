@@ -1,0 +1,22 @@
+ack TODOTRACKCONNECTOR in viktrwlayer.c
+ack TODO in viktrackgraph.c
+
+FIX: multi (ctrl-) and delete track
+FIX: I should probably now fix the crash the happens when you completely undo a track and try to start again.
+
+make it so I can see the track I'm making (color it different, maybe draw at end)
+SHOW LENGTH! to easily compare lengths of different routes by undoing and redoing
+merge TRW layers
+
+get rid of the O(n^2) stuff and double edges:
+
+settable allowance for "connected tracks" (including 0)
+
+Thing to split up tracks or connect endpoints with non-endpoints... or crossing tracks...
+
+start and end in middle of tracks (easy, just make new type of node with is_endpoint=MIDDLE and a trackpoint)
+
+
+It would be nice to  somehow do it across multiple TRW layers... make the tool work on an AggregateLayer. And then show trail lengths coming from different layers! (road/trail/etc)
+which gets all tracks of all trw layers and creates a new layer?
+  (similar to calls needed to merge all trw layers -- getalltracksandwypointshashes -- add to list)
