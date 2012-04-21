@@ -196,9 +196,8 @@ gulong vik_track_get_dup_point_count ( const VikTrack *tr )
   return num;
 }
 
-void vik_track_remove_dup_points ( VikTrack *tr )
+void vik_track_remove_dup_points_starting_from ( VikTrack *tr, GList *iter )
 {
-  GList *iter = tr->trackpoints;
   while ( iter )
   {
     if ( iter->next && vik_coord_equals ( &(VIK_TRACKPOINT(iter->data)->coord),
@@ -211,6 +210,12 @@ void vik_track_remove_dup_points ( VikTrack *tr )
       iter = iter->next;
   }
 }
+
+void vik_track_remove_dup_points ( VikTrack *tr )
+{
+  vik_track_remove_dup_points_starting_from(tr, tr->trackpoints);
+}
+
 
 guint vik_track_get_segment_count(const VikTrack *tr)
 {
@@ -1129,6 +1134,20 @@ void vik_track_steal_and_append_trackpoints ( VikTrack *t1, VikTrack *t2 )
   } else
     t1->trackpoints = t2->trackpoints;
   t2->trackpoints = NULL;
+}
+
+/* Given a pointer to the GList of the trackpoint,
+ * adds a double (duplicate) point immediately after, if the next
+ * trackpoint is not already a duplicate trackpoint. */
+void vik_track_list_add_double_trackpoint_if_necessary(GList *tp_pointer)
+{
+  if (!(tp_pointer && tp_pointer->next))
+    return;
+  if ( !vik_coord_equals((VikCoord *)tp_pointer->data, (VikCoord *)tp_pointer->next->data) ) {
+    VikTrackpoint *dup_tp = vik_trackpoint_new();
+    dup_tp->coord = VIK_TRACKPOINT(tp_pointer->data)->coord;
+    g_list_insert_before(tp_pointer, tp_pointer->next, dup_tp); // we can safely ignore return value, we know the start of list is not going to change
+  }
 }
 
 /* starting at the end, looks backwards for the last "double point", a duplicate trackpoint.

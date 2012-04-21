@@ -5921,8 +5921,10 @@ static VikTrack *track_connector(GHashTable *tracks, VikCoord *start, VikCoord *
   vik_trackgraph_node_free(end_dijkstra);
 
   VikTrack *rv;
+  GList *old_end = NULL;
   if ( track_to_append_to ) {
     rv = track_to_append_to;
+    old_end = g_list_last(rv->trackpoints);
   } else {
     rv = vik_track_new();
     rv->visible = TRUE;
@@ -5938,12 +5940,21 @@ static VikTrack *track_connector(GHashTable *tracks, VikCoord *start, VikCoord *
       VikTrack *tmp = vik_track_copy(VIK_TRACK(g_hash_table_lookup(tracks, this->track_name)));
       if (this->is_endpoint == VIK_TRACKGRAPH_NODE_END)
         vik_track_reverse(tmp);
+      vik_track_remove_dup_points ( tmp ); // make sure undo will work
       vik_track_steal_and_append_trackpoints(rv, tmp);
       vik_track_free(tmp);
     }
   }
   g_list_free(dijkstra);
   vik_trackgraph_free_all(vtg);
+
+  /* Remove any possible dup points and then add double trackpoint if necessary. It may not be necessary if tracks exactly touch. */
+  if (old_end)
+    vik_track_remove_dup_points_starting_from(rv, old_end->next);
+  else
+    vik_track_remove_dup_points(rv);
+  vik_track_list_add_double_trackpoint_if_necessary(old_end);
+
   return rv;
 }
 
@@ -5964,6 +5975,14 @@ static gboolean tool_track_connector_click ( VikTrwLayer *vtl, GdkEventButton *e
       // TODOTRACKCONNECTOR: don't need to search for last point if continuing, so this could be optimized.
       track_connector(vtl->tracks, last_coord, &tmp, vtl->track_connector_current_track);
       vik_layer_emit_update(VIK_LAYER(vtl), FALSE);
+    } else if ( vtl->track_connector_current_track && event->button == 3 ) {
+      VikCoord *new_end;
+      new_end = vik_track_cut_back_to_double_point ( vtl->track_connector_current_track );
+      if ( new_end ) {
+        vtl->track_connector_coord = *new_end;
+        g_free ( new_end );
+        vik_layer_emit_update ( VIK_LAYER(vtl), FALSE );
+      }
     } else {
       vtl->track_connector_coord = tmp;
       vtl->track_connector_started = TRUE;

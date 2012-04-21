@@ -80,6 +80,7 @@ void vik_track_reverse(VikTrack *tr);
 
 gulong vik_track_get_dup_point_count ( const VikTrack *vt );
 void vik_track_remove_dup_points ( VikTrack *vt );
+void vik_track_remove_dup_points_starting_from ( VikTrack *vt, GList *start );
 
 gdouble vik_track_get_max_speed(const VikTrack *tr);
 gdouble vik_track_get_average_speed(const VikTrack *tr);
@@ -109,6 +110,13 @@ void vik_track_apply_dem_data_last_trackpoint ( VikTrack *tr );
 
 /* appends t2 to t1, leaving t2 with no trackpoints */
 void vik_track_steal_and_append_trackpoints ( VikTrack *t1, VikTrack *t2 );
+
+
+/* Given a pointer to the GList of the trackpoint,
+ * adds a double (duplicate) point immediately after, if the next
+ * trackpoint is not already a duplicate trackpoint. */
+void vik_track_list_add_double_trackpoint_if_necessary(GList *tp_pointer);
+
 
 /* starting at the end, looks backwards for the last "double point", a duplicate trackpoint.
  * If there is no double point, deletes all the trackpoints.
