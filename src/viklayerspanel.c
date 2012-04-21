@@ -54,12 +54,20 @@ struct _VikLayersPanel {
   GtkItemFactory *popup_factory;
 };
 
+
+static void layers_panel_merge_aggregate_selected( VikLayersPanel *vlp );
+
+
 static GtkItemFactoryEntry base_entries[] = {
  { N_("/C_ut"), NULL, (GtkItemFactoryCallback) vik_layers_panel_cut_selected, -1, "<StockItem>", GTK_STOCK_CUT },
  { N_("/_Copy"), NULL, (GtkItemFactoryCallback) vik_layers_panel_copy_selected, -1, "<StockItem>", GTK_STOCK_COPY },
  { N_("/_Paste"), NULL, (GtkItemFactoryCallback) vik_layers_panel_paste_selected, -1, "<StockItem>", GTK_STOCK_PASTE },
  { N_("/_Delete"), NULL, (GtkItemFactoryCallback) vik_layers_panel_delete_selected, -1, "<StockItem>", GTK_STOCK_DELETE },
  { N_("/New Layer"), NULL, NULL, -1, "<Branch>" },
+ { N_("/Merge All TRWLayers"), NULL, (GtkItemFactoryCallback) layers_panel_merge_aggregate_selected, -1, "<StockItem>", GTK_STOCK_ADD } 
+   /* TODO TODOMERGETRW: figure out why adding this gives a warning. also, make sure need to copy trac: I don't like this.
+    * but I was afraid to change the popup code at add it i na add_menu_items callback in aggregate layer
+    * because I don't know how/if the menu is being freed. */
 };
 
 #define NUM_BASE_ENTRIES (sizeof(base_entries)/sizeof(base_entries[0]))
@@ -345,7 +353,7 @@ static void layers_popup ( VikLayersPanel *vlp, GtkTreeIter *iter, gint mouse_bu
         GtkWidget *del, *prop;
 	VikStdLayerMenuItem menu_selection = vik_layer_get_menu_items_selection(layer);
 
-        menu = GTK_MENU ( gtk_menu_new () );
+        menu = GTK_MENU ( gtk_menu_new () ); /* FIXME: is this menu never freed?! */
 
 	if (menu_selection & VIK_MENU_ITEM_PROPERTY) {
 	  prop = gtk_image_menu_item_new_from_stock ( GTK_STOCK_PROPERTIES, NULL );
@@ -639,6 +647,19 @@ void vik_layers_panel_delete_selected ( VikLayersPanel *vlp )
       vik_layer_get_interface(sel->type)->delete_item ( sel, subtype, vik_treeview_item_get_pointer(sel->vt, &iter) );
     }
   }
+}
+
+static void layers_panel_merge_aggregate_selected( VikLayersPanel *vlp )
+{
+  VikAggregateLayer *val = VIK_AGGREGATE_LAYER(vik_layers_panel_get_selected(vlp));
+  g_assert(VIK_LAYER(val)->type == VIK_LAYER_AGGREGATE);
+
+  VikTrwLayer *new_trw = VIK_TRW_LAYER(vik_layer_create ( VIK_LAYER_TRW, vlp->vvp, VIK_GTK_WINDOW_FROM_WIDGET(vlp->vvp), TRUE ));
+  if (!new_trw)
+    return;
+
+  vik_aggregate_layer_mix_in_all_trw_layers(val, new_trw);
+  vik_layers_panel_add_layer(vlp, VIK_LAYER(new_trw));
 }
 
 VikLayer *vik_layers_panel_get_selected ( VikLayersPanel *vlp )

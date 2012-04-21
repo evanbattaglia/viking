@@ -21,7 +21,6 @@
 
 #include "viking.h"
 #include "icons/icons.h"
-
 #include <string.h>
 
 #define DISCONNECT_UPDATE_SIGNAL(vl, val) g_signal_handlers_disconnect_matched(vl, G_SIGNAL_MATCH_DATA, 0, 0, 0, 0, val)
@@ -524,5 +523,28 @@ static void aggregate_layer_drag_drop_request ( VikAggregateLayer *val_src, VikA
     vik_aggregate_layer_insert_layer(val_dest, vl, NULL); /* append */
   }
   g_free(dp);
+}
+
+static void aggregate_layer_add_track_to_trw_layer(const gchar *name, VikTrack *track, VikTrwLayer *dest)
+{
+  vik_trw_layer_filein_add_track(dest, name, vik_track_copy(track)); // TODO TODOMERGETRW: make sure need to copy track
+}
+static void aggregate_layer_add_waypoint_to_trw_layer(const gchar *name, VikWaypoint *waypoint, VikTrwLayer *dest)
+{
+  vik_trw_layer_filein_add_waypoint(dest, name, vik_waypoint_copy(waypoint)); // TODO TODOMERGETRW: make sure need to copy trac
+}
+
+void vik_aggregate_layer_mix_in_all_trw_layers(VikAggregateLayer *val, VikTrwLayer *dest)
+{
+  GList *iter;
+  for (iter = val->children; iter; iter = iter->next) {
+    VikLayer *layer = VIK_LAYER(iter->data);
+    if (layer->type == VIK_LAYER_AGGREGATE)
+      vik_aggregate_layer_mix_in_all_trw_layers(VIK_AGGREGATE_LAYER(layer), dest);
+    else if (layer->type == VIK_LAYER_TRW) {
+      g_hash_table_foreach(vik_trw_layer_get_tracks(VIK_TRW_LAYER(layer)), (GHFunc) aggregate_layer_add_track_to_trw_layer, dest);
+      g_hash_table_foreach(vik_trw_layer_get_waypoints(VIK_TRW_LAYER(layer)), (GHFunc) aggregate_layer_add_waypoint_to_trw_layer, dest);
+    }
+  }
 }
 

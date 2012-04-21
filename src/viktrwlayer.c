@@ -2930,13 +2930,13 @@ static gchar *get_new_unique_sublayer_name (VikTrwLayer *vtl, gint sublayer_type
   return newname;
 }
 
-void vik_trw_layer_filein_add_waypoint ( VikTrwLayer *vtl, gchar *name, VikWaypoint *wp )
+void vik_trw_layer_filein_add_waypoint ( VikTrwLayer *vtl, const gchar *name, VikWaypoint *wp )
 {
   vik_trw_layer_add_waypoint ( vtl,
                         get_new_unique_sublayer_name(vtl, VIK_TRW_LAYER_SUBLAYER_WAYPOINT, name),
                         wp );
 }
-void vik_trw_layer_filein_add_track ( VikTrwLayer *vtl, gchar *name, VikTrack *tr )
+void vik_trw_layer_filein_add_track ( VikTrwLayer *vtl, const gchar *name, VikTrack *tr )
 {
   if ( vtl->route_finder_append && vtl->route_finder_current_track ) {
     vik_track_remove_dup_points ( tr ); /* make "double point" track work to undo */

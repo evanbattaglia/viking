@@ -25,6 +25,7 @@
 #include <time.h>
 
 #include "viklayer.h"
+#include "viktrwlayer.h"
 
 #define VIK_AGGREGATE_LAYER_TYPE            (vik_aggregate_layer_get_type ())
 #define VIK_AGGREGATE_LAYER(obj)            (G_TYPE_CHECK_INSTANCE_CAST ((obj), VIK_AGGREGATE_LAYER_TYPE, VikAggregateLayer))
@@ -51,6 +52,8 @@ void vik_aggregate_layer_free ( VikAggregateLayer *val );
 void vik_aggregate_layer_clear ( VikAggregateLayer *val );
 gboolean vik_aggregate_layer_delete ( VikAggregateLayer *val, GtkTreeIter *iter );
 VikAggregateLayer *vik_aggregate_layer_create (VikViewport *vp);
+
+void vik_aggregate_layer_mix_in_all_trw_layers(VikAggregateLayer *val, VikTrwLayer *dest);
 
 /* returns: 0 = success, 1 = none appl. found, 2 = found but rejected */
 // guint vik_aggregate_layer_tool ( VikAggregateLayer *val, guint16 layer_type, VikToolInterfaceFunc tool_func, GdkEventButton *event, VikViewport *vvp);

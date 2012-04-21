@@ -47,8 +47,8 @@ typedef struct _VikTrwLayer VikTrwLayer;
 
 /* These are meant for use in file loaders (gpspoint.c, gpx.c, etc).
  * These copy the name, so you should free it if necessary. */
-void vik_trw_layer_filein_add_waypoint ( VikTrwLayer *vtl, gchar *name, VikWaypoint *wp );
-void vik_trw_layer_filein_add_track ( VikTrwLayer *vtl, gchar *name, VikTrack *tr );
+void vik_trw_layer_filein_add_waypoint ( VikTrwLayer *vtl, const gchar *name, VikWaypoint *wp );
+void vik_trw_layer_filein_add_track ( VikTrwLayer *vtl, const gchar *name, VikTrack *tr );
 
 gint vik_trw_layer_get_property_tracks_line_thickness ( VikTrwLayer *vtl );
 
