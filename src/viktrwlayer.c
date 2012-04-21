@@ -3024,7 +3024,7 @@ gboolean vik_trw_layer_delete_track ( VikTrwLayer *vtl, const gchar *trk_name )
     }
     if ( t == vtl->route_finder_current_track )
       vtl->route_finder_current_track = NULL;
-    if ( t == vtl->track_connector_current_track ) // TODOTRACKCONNECTOR: not used yet so use or remove
+    if ( t == vtl->track_connector_current_track )
       vtl->route_finder_current_track = NULL;
 
     /* could be current_tp, so we have to check */
@@ -5876,7 +5876,7 @@ static void track_connector_find_nearest(gchar *name, VikTrack *track, gpointer 
 }
 
 
-static VikTrack *track_connector(GHashTable *tracks, VikCoord *start, VikCoord *end)
+static VikTrack *track_connector(GHashTable *tracks, VikCoord *start, VikCoord *end, VikTrack *track_to_append_to)
 {
   // TODOTRACKCONNECTOR: return if there are no tracks.
   gdouble dist_allowance = 100.0; /* meters */
@@ -5920,8 +5920,14 @@ static VikTrack *track_connector(GHashTable *tracks, VikCoord *start, VikCoord *
   vik_trackgraph_node_free(start_dijkstra);
   vik_trackgraph_node_free(end_dijkstra);
 
-  VikTrack *rv = vik_track_new();
-  rv->visible = TRUE;
+  VikTrack *rv;
+  if ( track_to_append_to ) {
+    rv = track_to_append_to;
+  } else {
+    rv = vik_track_new();
+    rv->visible = TRUE;
+  }
+
   GList *iter;
   for (iter = dijkstra; iter && iter->next; iter = iter->next) {
     /// TODOTRACKCONNECTOR: make a track append all the trackpoints...
@@ -5953,14 +5959,21 @@ static gboolean tool_track_connector_click ( VikTrwLayer *vtl, GdkEventButton *e
   VikCoord tmp;
   vik_viewport_screen_to_coord ( vvp, event->x, event->y, &tmp );
   if ( !vtl->track_connector_started ) {
-    vtl->track_connector_coord = tmp;
-    vtl->track_connector_started = TRUE;
-      // TODOTRACKCONNECTOR: make use of vtl->track_connector_current_track
+    if ( vtl->track_connector_current_track && (event->state & GDK_CONTROL_MASK) ) {
+      VikCoord *last_coord = &VIK_TRACKPOINT(g_list_last(vtl->track_connector_current_track->trackpoints)->data)->coord;
+      // TODOTRACKCONNECTOR: don't need to search for last point if continuing, so this could be optimized.
+      track_connector(vtl->tracks, last_coord, &tmp, vtl->track_connector_current_track);
+      vik_layer_emit_update(VIK_LAYER(vtl), FALSE);
+    } else {
+      vtl->track_connector_coord = tmp;
+      vtl->track_connector_started = TRUE;
+    }
   } else {
     vtl->track_connector_started = FALSE;
-    VikTrack *new_track = track_connector(vtl->tracks, &vtl->track_connector_coord, &tmp);
-    vik_trw_layer_add_track(vtl, g_strdup("connected"), new_track);
-    // TODOTRACKCONNECTOR: emit update
+    vtl->track_connector_current_track = NULL;
+    VikTrack *new_track = track_connector(vtl->tracks, &vtl->track_connector_coord, &tmp, NULL);
+    vik_trw_layer_add_track(vtl, g_strdup("connected"), vtl->track_connector_current_track = new_track);
+    vik_layer_emit_update(VIK_LAYER(vtl), FALSE);
   }
 
   return TRUE;
