@@ -3,6 +3,7 @@ ack TODO in viktrackgraph.c
 
 FIX: multi (ctrl-) and delete track
 FIX: I should probably now fix the crash the happens when you completely undo a track and try to start again.
+ERROR:viktrackgraph.c:282:vik_trackgraph_dijkstra: assertion failed: (FALSE) on trying to od whole think of canonical on ~/imt/gps/imt-ii.overview.vik 
 
 make it so I can see the track I'm making (color it different, maybe draw at end)
 SHOW LENGTH! to easily compare lengths of different routes by undoing and redoing

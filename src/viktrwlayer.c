@@ -1505,6 +1505,8 @@ static void trw_layer_draw ( VikTrwLayer *l, gpointer data )
 
   if ( l->tracks_visible )
     g_hash_table_foreach ( l->tracks, (GHFunc) trw_layer_draw_track_cb, &dp );
+  else if ( l->track_connector_current_track )
+    trw_layer_draw_track_cb("", l->track_connector_current_track, &dp );
 
   if (l->waypoints_visible)
     g_hash_table_foreach ( l->waypoints, (GHFunc) trw_layer_draw_waypoint, &dp );
@@ -5879,7 +5881,7 @@ static void track_connector_find_nearest(gchar *name, VikTrack *track, gpointer 
 static VikTrack *track_connector(GHashTable *tracks, VikCoord *start, VikCoord *end, VikTrack *track_to_append_to)
 {
   // TODOTRACKCONNECTOR: return if there are no tracks.
-  gdouble dist_allowance = 100.0; /* meters */
+  gdouble dist_allowance = 300.0; /* meters */
   VikTrackgraph *vtg = vik_trackgraph_new();
 
   // add all endpoints as nodes and all tracks as edges
