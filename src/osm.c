@@ -39,15 +39,15 @@
 void osm_init () {
   VikMapSource *osmarender_type = 
     VIK_MAP_SOURCE(g_object_new(VIK_TYPE_SLIPPY_MAP_SOURCE,
-                                "id", 12,
-                                "label", "OpenStreetMap (Osmarender)",
-                                "hostname", "tah.openstreetmap.org",
-                                "url", "/Tiles/tile/%d/%d/%d.png",
-                                "check-file-server-time", TRUE,
+                                "id", 29,
+                                "label", "CalTopo",
+                                "hostname", "s3-us-west-1.amazonaws.com",
+                                "url", "/caltopo/topo/%d/%d/%d.png?v=1",
+                                "check-file-server-time", FALSE,
                                 "use-etag", FALSE,
-                                "copyright", "© OpenStreetMap contributors",
-                                "license", "CC-BY-SA",
-                                "license-url", "http://www.openstreetmap.org/copyright",
+                                "copyright", "© CalTopo",
+                                "license", "??? Donate at:",
+                                "license-url", "http://bamru.info/caltopo",
                                 NULL));
   VikMapSource *mapnik_type =
     VIK_MAP_SOURCE(g_object_new(VIK_TYPE_SLIPPY_MAP_SOURCE,
