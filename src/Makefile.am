@@ -158,6 +158,11 @@ libviking_a_SOURCES += \
 	bluemarble.c bluemarble.h
 endif
 
+if CALTOPO
+libviking_a_SOURCES += \
+	caltopo.c caltopo.h
+endif
+
 if GEONAMES
 libviking_a_SOURCES += \
 	geonames.c geonames.h \

@@ -181,6 +181,20 @@ case $ac_cv_enable_openstreetmap in
 esac
 AM_CONDITIONAL([OPENSTREETMAP], [test x$ac_cv_enable_openstreetmap = xyes])
 
+# CalTopo
+AC_ARG_ENABLE(caltopo, AC_HELP_STRING([--enable-caltopo],
+              [enable CalTopo stuff (default is enable)]),
+              [ac_cv_enable_caltopo=$enableval],
+              [ac_cv_enable_caltopo=yes])
+AC_CACHE_CHECK([whether to enable CalTopo stuff],
+               [ac_cv_enable_caltopo], [ac_cv_enable_caltopo=yes])
+case $ac_cv_enable_caltopo in
+  yes)
+    AC_DEFINE(VIK_CONFIG_CALTOPO, [], [CALTOPO STUFF])
+    ;;
+esac
+AM_CONDITIONAL([CALTOPO], [test x$ac_cv_enable_caltopo = xyes])
+
 # BlueMarble
 AC_ARG_ENABLE(bluemarble, AC_HELP_STRING([--enable-bluemarble],
               [enable BlueMarble stuff (default is enable)]),
@@ -369,6 +383,7 @@ echo "Terraserver Maps                 : $ac_cv_enable_terraserver"
 echo "Expedia Maps                     : $ac_cv_enable_expedia"
 echo "Open Street Map                  : $ac_cv_enable_openstreetmap"
 echo "BlueMarble                       : $ac_cv_enable_bluemarble"
+echo "CalTopo                          : $ac_cv_enable_caltopo"
 echo "SPOTMaps                         : $ac_cv_enable_spotmaps"
 echo "Geonames                         : $ac_cv_enable_geonames"
 echo "Geocaches Acquire                : $ac_cv_enable_geocaches"

@@ -39,6 +39,7 @@
 #include "osm.h"
 #include "osm-traces.h"
 #include "bluemarble.h"
+#include "caltopo.h"
 #include "geonames.h"
 #include "file.h"
 #include "vikmapslayer.h"
@@ -135,6 +136,9 @@ void modules_init()
 #endif
 #ifdef VIK_CONFIG_SPOTMAPS
   spotmaps_init();
+#endif
+#ifdef VIK_CONFIG_CALTOPO
+  caltopo_init(); // source id 29
 #endif
 
   /* As modules are loaded, we can load configuration files */
