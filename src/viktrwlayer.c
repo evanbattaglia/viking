@@ -5943,6 +5943,8 @@ static VikTrack *track_connector(GHashTable *tracks, VikCoord *start, VikCoord *
       if (this->is_endpoint == VIK_TRACKGRAPH_NODE_END)
         vik_track_reverse(tmp);
       vik_track_remove_dup_points ( tmp ); // make sure undo will work
+      if (tmp->trackpoints)
+        VIK_TRACKPOINT(tmp->trackpoints->data)->newsegment = FALSE;
       vik_track_steal_and_append_trackpoints(rv, tmp);
       vik_track_free(tmp);
     }
