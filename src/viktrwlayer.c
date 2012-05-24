@@ -5974,7 +5974,7 @@ static gboolean tool_track_connector_click ( VikTrwLayer *vtl, GdkEventButton *e
   VikCoord tmp;
   vik_viewport_screen_to_coord ( vvp, event->x, event->y, &tmp );
   if ( !vtl->track_connector_started ) {
-    if ( vtl->track_connector_current_track && (event->state & GDK_CONTROL_MASK) ) {
+    if ( vtl->track_connector_current_track && (event->state & GDK_CONTROL_MASK) && vtl->track_connector_current_track->trackpoints ) {
       VikCoord *last_coord = &VIK_TRACKPOINT(g_list_last(vtl->track_connector_current_track->trackpoints)->data)->coord;
       // TODOTRACKCONNECTOR: don't need to search for last point if continuing, so this could be optimized.
       track_connector(vtl->tracks, last_coord, &tmp, vtl->track_connector_current_track);
@@ -5995,7 +5995,7 @@ static gboolean tool_track_connector_click ( VikTrwLayer *vtl, GdkEventButton *e
     vtl->track_connector_started = FALSE;
     vtl->track_connector_current_track = NULL;
     VikTrack *new_track = track_connector(vtl->tracks, &vtl->track_connector_coord, &tmp, NULL);
-    vik_trw_layer_add_track(vtl, g_strdup("connected"), vtl->track_connector_current_track = new_track);
+    vik_trw_layer_filein_add_track(vtl, "connected", vtl->track_connector_current_track = new_track);
     vik_layer_emit_update(VIK_LAYER(vtl), FALSE);
   }
 
