@@ -53,7 +53,7 @@ void osm_init () {
     VIK_MAP_SOURCE(g_object_new(VIK_TYPE_SLIPPY_MAP_SOURCE,
                                 "id", 13,
                                 "label", "OpenStreetMap (Mapnik)",
-                                "hostname", "tile.openstreetmap.org",
+                                "hostname", "a.tile.openstreetmap.org",
                                 "url", "/%d/%d/%d.png",
                                 "check-file-server-time", FALSE,
                                 "use-etag", TRUE,
