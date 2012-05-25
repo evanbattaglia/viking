@@ -1115,6 +1115,7 @@ static void trw_layer_draw_track ( const gchar *name, VikTrack *track, struct Dr
   gboolean drawpoints;
   gboolean drawstops;
   gboolean drawelevation;
+  gboolean drawdistance = !drawing_white_background;
   gdouble min_alt, max_alt, alt_diff = 0;
 
   const guint8 tp_size_reg = 2;
@@ -1179,7 +1180,7 @@ static void trw_layer_draw_track ( const gchar *name, VikTrack *track, struct Dr
 
     vik_viewport_coord_to_screen ( dp->vp, &(tp->coord), &x, &y );
 
-    if ( (drawpoints) && dp->track_gc_iter < VIK_TRW_LAYER_TRACK_GC )
+    if ( (drawpoints || drawdistance) && dp->track_gc_iter < VIK_TRW_LAYER_TRACK_GC )
     {
       GdkPoint trian[3] = { { x, y-(3*tp_size) }, { x-(2*tp_size), y+(2*tp_size) }, {x+(2*tp_size), y+(2*tp_size)} };
       vik_viewport_draw_polygon ( dp->vp, main_gc, TRUE, trian, 3 );
@@ -1326,50 +1327,57 @@ static void trw_layer_draw_track ( const gchar *name, VikTrack *track, struct Dr
         }
         useoldvals = FALSE;
       }
+
+      if ( drawdistance && ! list->next) {
+        GdkPoint trian[3] = { { x, y-(3*tp_size) }, { x-(2*tp_size), y+(2*tp_size) }, {x+(2*tp_size), y+(2*tp_size)} };
+        vik_viewport_draw_polygon ( dp->vp, main_gc, TRUE, trian, 3 );
+      }
     }
+
   }
 
-#define DG(x) ((x)/M_PI*180)
   /**** DRAW SOON TO BE DISTANCE ****/
   // TODO: draw only once. options.
-  VikCoord midpoint, pre_midpoint, post_midpoint;
-  if ( vik_track_get_midpoint_and_before_and_after(track, 30 * vik_viewport_get_xmpp(dp->vp), &pre_midpoint, &midpoint, &post_midpoint) ) {
-    gint mid_x, mid_y, premid_x, premid_y, postmid_x, postmid_y;
-    vik_viewport_coord_to_screen( dp->vp, &midpoint, &mid_x, &mid_y);
-    vik_viewport_coord_to_screen( dp->vp, &pre_midpoint, &premid_x, &premid_y);
-    vik_viewport_coord_to_screen( dp->vp, &post_midpoint, &postmid_x, &postmid_y);
-    gdouble mid_prepost_y = premid_y + (postmid_y - premid_y) / 2.0;
-    gdouble mid_prepost_x = premid_x + (postmid_x - premid_x) / 2.0;
+  if (drawdistance) {
 
-    gdouble midprepost_to_mid_angle = atan2(mid_y - mid_prepost_y, mid_x - mid_prepost_x);
-    gdouble text_angle1 = atan2(postmid_y - premid_y, postmid_x - premid_x) - M_PI / 2;
-    gdouble text_angle2 = text_angle1 + M_PI;
-    // Figure out what site we should of the line to put the text based on the concavity of the line at that point (midpoint between premid and postmid)
-    gdouble best_diff1 = text_angle1 - midprepost_to_mid_angle;
-    
-    best_diff1 = MIN(ABS(best_diff1), MIN(ABS(best_diff1+2*M_PI), MIN(ABS(best_diff1-2*M_PI), MIN(ABS(best_diff1+4*M_PI), ABS(best_diff1+4*M_PI))))); // TODO: these may not all be necessary, have to think about it more.
-    gdouble best_diff2 = text_angle2 - midprepost_to_mid_angle;
-    best_diff2 = MIN(ABS(best_diff2), MIN(ABS(best_diff2+2*M_PI), MIN(ABS(best_diff2-2*M_PI), MIN(ABS(best_diff2+4*M_PI), ABS(best_diff2+4*M_PI)))));
-    gdouble text_angle = (best_diff1 < best_diff2) ? text_angle1 : text_angle2;
-    g_print("%s: midpptomid: %f, text_angle1: %f, text_angle2: %f, best_diff1: %f, best_diff2: %f\n", name, DG(midprepost_to_mid_angle), DG(text_angle1), DG(text_angle2), DG(best_diff1), DG(best_diff2));
+    VikCoord midpoint, pre_midpoint, post_midpoint;
+    if ( vik_track_get_midpoint_and_before_and_after(track, 30 * vik_viewport_get_xmpp(dp->vp), &pre_midpoint, &midpoint, &post_midpoint) ) {
+      // Get midpoint and point ~30 pixels along track before and after.
+      gint mid_x, mid_y, premid_x, premid_y, postmid_x, postmid_y;
+      vik_viewport_coord_to_screen( dp->vp, &midpoint, &mid_x, &mid_y);
+      vik_viewport_coord_to_screen( dp->vp, &pre_midpoint, &premid_x, &premid_y);
+      vik_viewport_coord_to_screen( dp->vp, &post_midpoint, &postmid_x, &postmid_y);
+      gdouble mid_prepost_y = premid_y + (postmid_y - premid_y) / 2.0;
+      gdouble mid_prepost_x = premid_x + (postmid_x - premid_x) / 2.0;
 
-    gint text_x = mid_x + 20*cos(text_angle);
-    gint text_y = mid_y + 20*sin(text_angle);
+      gdouble midprepost_to_mid_angle = atan2(mid_y - mid_prepost_y, mid_x - mid_prepost_x);
+      gdouble text_angle1 = atan2(postmid_y - premid_y, postmid_x - premid_x) - M_PI / 2;
+      gdouble text_angle2 = text_angle1 + M_PI;
+      // Figure out what site we should of the line to put the text based on the concavity of the line at that point (midpoint between premid and postmid)
+      gdouble best_diff1 = text_angle1 - midprepost_to_mid_angle;
+      
+      best_diff1 = MIN(ABS(best_diff1), MIN(ABS(best_diff1+2*M_PI), MIN(ABS(best_diff1-2*M_PI), MIN(ABS(best_diff1+4*M_PI), ABS(best_diff1+4*M_PI))))); // TODO: these may not all be necessary, have to think about it more.
+      gdouble best_diff2 = text_angle2 - midprepost_to_mid_angle;
+      best_diff2 = MIN(ABS(best_diff2), MIN(ABS(best_diff2+2*M_PI), MIN(ABS(best_diff2-2*M_PI), MIN(ABS(best_diff2+4*M_PI), ABS(best_diff2+4*M_PI)))));
+      gdouble text_angle = (best_diff1 < best_diff2) ? text_angle1 : text_angle2;
 
-    gchar *length_text;
-    gdouble dist = vik_track_get_length_including_gaps(track);
-    if ( a_vik_get_units_distance() == VIK_UNITS_DISTANCE_MILES )
-   	   length_text = g_strdup_printf ("%.1fm", VIK_METERS_TO_MILES(dist));
-    else
-       length_text = g_strdup_printf("%.1fk", dist / 1000.0);
-    pango_layout_set_text ( dp->vtl->wplabellayout, length_text, -1 );
-    g_free(length_text);
-    gint width, height;
-    pango_layout_get_pixel_size ( dp->vtl->wplabellayout, &width, &height );
-	  vik_viewport_draw_rectangle ( dp->vp, dp->vtl->waypoint_bg_gc, TRUE, text_x - width/2 - 1, text_y - height/2 - 1,width+2,height+2);
-    vik_viewport_draw_layout ( dp->vp, dp->vtl->waypoint_text_gc, text_x - width/2, text_y - height/2, dp->vtl->wplabellayout );
+      gint text_x = mid_x + 20*cos(text_angle);
+      gint text_y = mid_y + 20*sin(text_angle);
+
+      gchar *length_text;
+      gdouble dist = vik_track_get_length_including_gaps(track);
+      if ( a_vik_get_units_distance() == VIK_UNITS_DISTANCE_MILES )
+         length_text = g_strdup_printf ("%.1fm", VIK_METERS_TO_MILES(dist));
+      else
+         length_text = g_strdup_printf("%.1fk", dist / 1000.0);
+      pango_layout_set_text ( dp->vtl->wplabellayout, length_text, -1 );
+      g_free(length_text);
+      gint width, height;
+      pango_layout_get_pixel_size ( dp->vtl->wplabellayout, &width, &height );
+      vik_viewport_draw_rectangle ( dp->vp, dp->vtl->waypoint_bg_gc, TRUE, text_x - width/2 - 1, text_y - height/2 - 1,width+2,height+2);
+      vik_viewport_draw_layout ( dp->vp, dp->vtl->waypoint_text_gc, text_x - width/2, text_y - height/2, dp->vtl->wplabellayout );
+    }
   }
-
 
 
 
