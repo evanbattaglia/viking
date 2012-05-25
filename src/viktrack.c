@@ -846,6 +846,48 @@ gdouble *vik_track_make_speed_dist_map ( const VikTrack *tr, guint16 num_chunks 
   return v;
 }
 
+
+gboolean vik_track_get_approx_coord_at_distance(VikTrack *tr, gdouble dist, VikCoord *dest_coord)
+{
+  gdouble current_dist = 0.0, next_dist = 0.0;
+  GList *iter = tr->trackpoints;
+  if ( ! (iter && iter->next) )
+    return FALSE; // less than two points.
+
+  while (iter->next) {
+    next_dist = current_dist + vik_coord_diff( &(VIK_TRACKPOINT(iter->data)->coord), &(VIK_TRACKPOINT(iter->next->data)->coord) );
+    if (next_dist >= dist) {
+      // Fake weighted distance 
+      gdouble percent_in_between = (dist - current_dist) / (next_dist - current_dist);
+      struct LatLon first, second, final;
+      vik_coord_to_latlon( &(VIK_TRACKPOINT(iter->data)->coord), &first );
+      vik_coord_to_latlon( &(VIK_TRACKPOINT(iter->next->data)->coord), &second );
+      final.lat = first.lat + percent_in_between * (second.lat - first.lat);
+      final.lon = first.lon + percent_in_between * (second.lon - first.lon);
+      vik_coord_load_from_latlon(dest_coord, VIK_TRACKPOINT(iter->data)->coord.mode, &final);
+      return TRUE;
+    }
+    current_dist = next_dist;
+    iter = iter->next;
+  }
+  return FALSE; // not long enough
+}
+
+gboolean vik_track_get_midpoint_and_before_and_after(VikTrack *tr, gdouble dist_around, VikCoord *before, VikCoord *midpoint, VikCoord *after)
+{
+  if ( ! (tr->trackpoints && tr->trackpoints->next) )
+    return FALSE;
+  gdouble track_len = vik_track_get_length_including_gaps(tr);
+  gdouble half_len = track_len / 2.0;
+  gdouble before_len = MAX(0.0, half_len - dist_around);
+  gdouble after_len = MIN(track_len, half_len + dist_around);
+  vik_track_get_approx_coord_at_distance(tr, before_len, before);
+  vik_track_get_approx_coord_at_distance(tr, half_len, midpoint);
+  vik_track_get_approx_coord_at_distance(tr, after_len, after); // TODO: could this possible fail if track_len > the track_len used in above func due to rounding errors? might be atough bug to track down, might want to use endpoint as backup here.
+
+}
+
+
 /* by Alex Foobarian */
 VikTrackpoint *vik_track_get_closest_tp_by_percentage_dist ( VikTrack *tr, gdouble reldist, gdouble *meters_from_start )
 {

@@ -127,4 +127,16 @@ VikCoord *vik_track_cut_back_to_double_point ( VikTrack *tr );
 void vik_track_set_property_dialog(VikTrack *tr, GtkWidget *dialog);
 void vik_track_clear_property_dialog(VikTrack *tr);
 
+
+/* interpolates between trackpoints, but only does so approximately, so not good for large distances between trackpoints.
+ * So far only used for positioning of track distance text, so it doesn't matter that much.
+ * TRUE if successful (i.e. track has at least two points and is lot longer than dist)
+ */
+gboolean vik_track_get_approx_coord_at_distance(VikTrack *tr, gdouble dist, VikCoord *dest_coord);
+
+/* Gets "midpoint" as above, but also points a specified distance before and after the endpoint (bounded by track beginning and ending)
+ * returns TRUE if successful (track has at least two points)
+ */
+gboolean vik_track_get_midpoint_and_before_and_after(VikTrack *tr, gdouble dist_around, VikCoord *before, VikCoord *midpoint, VikCoord *after);
+
 #endif
