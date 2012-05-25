@@ -1182,7 +1182,7 @@ static void trw_layer_draw_track ( const gchar *name, VikTrack *track, struct Dr
 
     if ( (drawpoints || drawdistance) && dp->track_gc_iter < VIK_TRW_LAYER_TRACK_GC )
     {
-      GdkPoint trian[3] = { { x, y-(3*tp_size) }, { x-(2*tp_size), y+(2*tp_size) }, {x+(2*tp_size), y+(2*tp_size)} };
+      GdkPoint trian[3] = { { x, y-(5*tp_size) }, { x-(3*tp_size), y+(3*tp_size) }, {x+(3*tp_size), y+(3*tp_size)} };
       vik_viewport_draw_polygon ( dp->vp, main_gc, TRUE, trian, 3 );
     }
 
@@ -1329,7 +1329,7 @@ static void trw_layer_draw_track ( const gchar *name, VikTrack *track, struct Dr
       }
 
       if ( drawdistance && ! list->next) {
-        GdkPoint trian[3] = { { x, y-(3*tp_size) }, { x-(2*tp_size), y+(2*tp_size) }, {x+(2*tp_size), y+(2*tp_size)} };
+        GdkPoint trian[3] = { { x, y-(5*tp_size) }, { x-(3*tp_size), y+(3*tp_size) }, {x+(3*tp_size), y+(3*tp_size)} };
         vik_viewport_draw_polygon ( dp->vp, main_gc, TRUE, trian, 3 );
       }
     }
