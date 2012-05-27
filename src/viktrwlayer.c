@@ -124,6 +124,7 @@ struct _VikTrwLayer {
   gboolean tracks_visible, waypoints_visible;
   guint8 drawmode;
   guint8 drawpoints;
+  guint8 drawdistance;
   guint8 drawelevation;
   guint8 elevation_factor;
   guint8 drawstops;
@@ -403,6 +404,7 @@ VikLayerParam trw_layer_params[] = {
   { "drawmode", VIK_LAYER_PARAM_UINT, GROUP_TRACKS, N_("Track Drawing Mode:"), VIK_LAYER_WIDGET_RADIOGROUP, NULL },
   { "drawlines", VIK_LAYER_PARAM_BOOLEAN, GROUP_TRACKS, N_("Draw Track Lines"), VIK_LAYER_WIDGET_CHECKBUTTON },
   { "drawpoints", VIK_LAYER_PARAM_BOOLEAN, GROUP_TRACKS, N_("Draw Trackpoints"), VIK_LAYER_WIDGET_CHECKBUTTON },
+  { "drawdistance", VIK_LAYER_PARAM_BOOLEAN, GROUP_TRACKS, N_("Draw Distance"), VIK_LAYER_WIDGET_CHECKBUTTON },
   { "drawelevation", VIK_LAYER_PARAM_BOOLEAN, GROUP_TRACKS, N_("Draw Elevation"), VIK_LAYER_WIDGET_CHECKBUTTON },
   { "elevation_factor", VIK_LAYER_PARAM_UINT, GROUP_TRACKS, N_("Draw Elevation Height %:"), VIK_LAYER_WIDGET_HSCALE, params_scales + 9 },
 
@@ -430,7 +432,7 @@ VikLayerParam trw_layer_params[] = {
   { "image_cache_size", VIK_LAYER_PARAM_UINT, GROUP_IMAGES, N_("Image Memory Cache Size:"), VIK_LAYER_WIDGET_HSCALE, params_scales + 5 },
 };
 
-enum { PARAM_TV, PARAM_WV, PARAM_DM, PARAM_DL, PARAM_DP, PARAM_DE, PARAM_EF, PARAM_DS, PARAM_SL, PARAM_LT, PARAM_BLT, PARAM_TBGC, PARAM_VMIN, PARAM_VMAX, PARAM_DLA, PARAM_WPC, PARAM_WPTC, PARAM_WPBC, PARAM_WPBA, PARAM_WPSYM, PARAM_WPSIZE, PARAM_WPSYMS, PARAM_DI, PARAM_IS, PARAM_IA, PARAM_ICS, NUM_PARAMS };
+enum { PARAM_TV, PARAM_WV, PARAM_DM, PARAM_DL, PARAM_DP, PARAM_DD, PARAM_DE, PARAM_EF, PARAM_DS, PARAM_SL, PARAM_LT, PARAM_BLT, PARAM_TBGC, PARAM_VMIN, PARAM_VMAX, PARAM_DLA, PARAM_WPC, PARAM_WPTC, PARAM_WPBC, PARAM_WPBA, PARAM_WPSYM, PARAM_WPSIZE, PARAM_WPSYMS, PARAM_DI, PARAM_IS, PARAM_IA, PARAM_ICS, NUM_PARAMS };
 
 /*** TO ADD A PARAM:
  *** 1) Add to trw_layer_params and enumeration
@@ -695,6 +697,7 @@ static gboolean trw_layer_set_param ( VikTrwLayer *vtl, guint16 id, VikLayerPara
     case PARAM_WV: vtl->waypoints_visible = data.b; break;
     case PARAM_DM: vtl->drawmode = data.u; break;
     case PARAM_DP: vtl->drawpoints = data.b; break;
+    case PARAM_DD: vtl->drawdistance = data.b; break;
     case PARAM_DE: vtl->drawelevation = data.b; break;
     case PARAM_DS: vtl->drawstops = data.b; break;
     case PARAM_DL: vtl->drawlines = data.b; break;
@@ -784,6 +787,7 @@ static VikLayerParamData trw_layer_get_param ( VikTrwLayer *vtl, guint16 id, gbo
     case PARAM_WV: rv.b = vtl->waypoints_visible; break;
     case PARAM_DM: rv.u = vtl->drawmode; break;
     case PARAM_DP: rv.b = vtl->drawpoints; break;
+    case PARAM_DD: rv.b = vtl->drawdistance; break;
     case PARAM_DE: rv.b = vtl->drawelevation; break;
     case PARAM_EF: rv.u = vtl->elevation_factor; break;
     case PARAM_DS: rv.b = vtl->drawstops; break;
@@ -952,6 +956,7 @@ static VikTrwLayer* trw_layer_new ( gint drawmode )
   rv->waypoints_visible = rv->tracks_visible = TRUE;
   rv->drawmode = drawmode;
   rv->drawpoints = TRUE;
+  rv->drawdistance = TRUE;
   rv->drawstops = FALSE;
   rv->drawelevation = FALSE;
   rv->elevation_factor = 30;
@@ -1115,7 +1120,7 @@ static void trw_layer_draw_track ( const gchar *name, VikTrack *track, struct Dr
   gboolean drawpoints;
   gboolean drawstops;
   gboolean drawelevation;
-  gboolean drawdistance = !drawing_white_background;
+  gboolean drawdistance;
   gdouble min_alt, max_alt, alt_diff = 0;
 
   const guint8 tp_size_reg = 2;
@@ -1137,8 +1142,9 @@ static void trw_layer_draw_track ( const gchar *name, VikTrack *track, struct Dr
     trw_layer_draw_track ( name, track, dp, TRUE );
 
   if ( drawing_white_background )
-    drawpoints = drawstops = FALSE;
+    drawdistance = drawpoints = drawstops = FALSE;
   else {
+    drawdistance = dp->vtl->drawdistance;
     drawpoints = dp->vtl->drawpoints;
     drawstops = dp->vtl->drawstops;
   }
