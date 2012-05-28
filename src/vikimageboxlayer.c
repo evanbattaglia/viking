@@ -416,6 +416,14 @@ static void imagebox_layer_generate_map ( gpointer vil_vlp[2] )
   vik_layer_emit_update_although_invisible( VIK_LAYER(vil) );
 }
 
+void vik_imagebox_layer_generate_map( VikImageboxLayer *vil, gpointer vlp)
+{
+  gpointer vil_vlp[2];
+  vil_vlp[0] = vil;
+  vil_vlp[1] = vlp;
+  imagebox_layer_generate_map ( vil_vlp );
+}
+
 static void imagebox_layer_draw_compass_rose(VikImageboxLayer *vil, VikViewport *vp)
 {
   if (imagebox_layer_has_compass_rose(vil)) {

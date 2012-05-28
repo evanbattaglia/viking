@@ -56,6 +56,7 @@ struct _VikLayersPanel {
 
 
 static void layers_panel_merge_aggregate_selected( VikLayersPanel *vlp );
+static void layers_panel_generate_all_imageboxes( VikLayersPanel *vlp );
 
 
 static GtkItemFactoryEntry base_entries[] = {
@@ -64,7 +65,8 @@ static GtkItemFactoryEntry base_entries[] = {
  { N_("/_Paste"), NULL, (GtkItemFactoryCallback) vik_layers_panel_paste_selected, -1, "<StockItem>", GTK_STOCK_PASTE },
  { N_("/_Delete"), NULL, (GtkItemFactoryCallback) vik_layers_panel_delete_selected, -1, "<StockItem>", GTK_STOCK_DELETE },
  { N_("/New Layer"), NULL, NULL, -1, "<Branch>" },
- { N_("/Merge All TRWLayers"), NULL, (GtkItemFactoryCallback) layers_panel_merge_aggregate_selected, -1, "<StockItem>", GTK_STOCK_ADD } 
+ { N_("/Merge All TRWLayers"), NULL, (GtkItemFactoryCallback) layers_panel_merge_aggregate_selected, -1, "<StockItem>", GTK_STOCK_ADD },
+ { N_("/Generate all ImageBoxes"), NULL, (GtkItemFactoryCallback) layers_panel_generate_all_imageboxes, -1, "<StockItem>", GTK_STOCK_ADD },
    /* TODO TODOMERGETRW: figure out why adding this gives a warning. also, make sure need to copy trac: I don't like this.
     * but I was afraid to change the popup code at add it i na add_menu_items callback in aggregate layer
     * because I don't know how/if the menu is being freed. */
@@ -647,6 +649,13 @@ void vik_layers_panel_delete_selected ( VikLayersPanel *vlp )
       vik_layer_get_interface(sel->type)->delete_item ( sel, subtype, vik_treeview_item_get_pointer(sel->vt, &iter) );
     }
   }
+}
+
+static void layers_panel_generate_all_imageboxes( VikLayersPanel *vlp )
+{
+  VikAggregateLayer *val = VIK_AGGREGATE_LAYER(vik_layers_panel_get_selected(vlp));
+  g_assert(VIK_LAYER(val)->type == VIK_LAYER_AGGREGATE);
+  vik_aggregate_layer_generate_all_imageboxes(val, vlp);
 }
 
 static void layers_panel_merge_aggregate_selected( VikLayersPanel *vlp )

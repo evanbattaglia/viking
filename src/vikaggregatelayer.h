@@ -65,6 +65,6 @@ gboolean vik_aggregate_layer_is_empty ( VikAggregateLayer *val );
 
 const GList *vik_aggregate_layer_get_children ( VikAggregateLayer *val );
 GList *vik_aggregate_layer_get_all_layers_of_type(VikAggregateLayer *val, GList *layers, gint type, gboolean include_invisible);
-
+void vik_aggregate_layer_generate_all_imageboxes(VikAggregateLayer *val, gpointer layers_panel);
 
 #endif

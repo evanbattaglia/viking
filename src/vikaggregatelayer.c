@@ -548,3 +548,16 @@ void vik_aggregate_layer_mix_in_all_trw_layers(VikAggregateLayer *val, VikTrwLay
   }
 }
 
+void vik_aggregate_layer_generate_all_imageboxes(VikAggregateLayer *val, gpointer layers_panel)
+{
+  GList *iter;
+  for (iter = val->children; iter; iter = iter->next) {
+    VikLayer *layer = VIK_LAYER(iter->data);
+    if (layer->type == VIK_LAYER_AGGREGATE)
+      vik_aggregate_layer_generate_all_imageboxes(VIK_AGGREGATE_LAYER(layer), layers_panel);
+    else if (layer->type == VIK_LAYER_IMAGEBOX)
+      vik_imagebox_layer_generate_map( VIK_IMAGEBOX_LAYER(layer), layers_panel );
+  }
+
+}
+

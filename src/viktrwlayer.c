@@ -24,6 +24,7 @@
  */
 
 #define WAYPOINT_FONT "Sans 8"
+#define DISTANCE_FONT "Sans 12 Bold"
 
 /* WARNING: If you go beyond this point, we are NOT responsible for any ill effects on your sanity */
 /* viktrwlayer.c -- 5000+ lines can make a difference in the state of things */
@@ -195,6 +196,7 @@ struct _VikTrwLayer {
 
   /* for waypoint text */
   PangoLayout *wplabellayout;
+  PangoLayout *distancelayout;
 
   gboolean has_verified_thumbnails;
 
@@ -963,6 +965,7 @@ static VikTrwLayer* trw_layer_new ( gint drawmode )
   rv->stop_length = 60;
   rv->drawlines = TRUE;
   rv->wplabellayout = NULL;
+  rv->distancelayout = NULL;
   rv->wp_right_click_menu = NULL;
   rv->track_right_click_menu = NULL;
   rv->waypoint_gc = NULL;
@@ -1022,6 +1025,9 @@ static void trw_layer_free ( VikTrwLayer *trwlayer )
 
   if ( trwlayer->wplabellayout != NULL)
     g_object_unref ( G_OBJECT ( trwlayer->wplabellayout ) );
+
+  if ( trwlayer->distancelayout != NULL)
+    g_object_unref ( G_OBJECT ( trwlayer->distancelayout ) );
 
   if ( trwlayer->waypoint_gc != NULL )
     g_object_unref ( G_OBJECT ( trwlayer->waypoint_gc ) );
@@ -1373,15 +1379,15 @@ static void trw_layer_draw_track ( const gchar *name, VikTrack *track, struct Dr
       gchar *length_text;
       gdouble dist = vik_track_get_length_including_gaps(track);
       if ( a_vik_get_units_distance() == VIK_UNITS_DISTANCE_MILES )
-         length_text = g_strdup_printf ("%.1fm", VIK_METERS_TO_MILES(dist));
+         length_text = g_strdup_printf ("%.1f", VIK_METERS_TO_MILES(dist));
       else
          length_text = g_strdup_printf("%.1fk", dist / 1000.0);
-      pango_layout_set_text ( dp->vtl->wplabellayout, length_text, -1 );
+      pango_layout_set_text ( dp->vtl->distancelayout, length_text, -1 );
       g_free(length_text);
       gint width, height;
-      pango_layout_get_pixel_size ( dp->vtl->wplabellayout, &width, &height );
+      pango_layout_get_pixel_size ( dp->vtl->distancelayout, &width, &height );
       vik_viewport_draw_rectangle ( dp->vp, dp->vtl->waypoint_bg_gc, TRUE, text_x - width/2 - 1, text_y - height/2 - 1,width+2,height+2);
-      vik_viewport_draw_layout ( dp->vp, dp->vtl->waypoint_text_gc, text_x - width/2, text_y - height/2, dp->vtl->wplabellayout );
+      vik_viewport_draw_layout ( dp->vp, dp->vtl->waypoint_text_gc, text_x - width/2, text_y - height/2, dp->vtl->distancelayout );
     }
   }
 
@@ -1648,6 +1654,12 @@ static VikTrwLayer* trw_layer_create ( VikViewport *vp )
   rv->wplabellayout = gtk_widget_create_pango_layout (GTK_WIDGET(vp), NULL);
   pfd = pango_font_description_from_string (WAYPOINT_FONT);
   pango_layout_set_font_description (rv->wplabellayout, pfd);
+  /* freeing PangoFontDescription, cause it has been copied by prev. call */
+  pango_font_description_free (pfd);
+
+  rv->distancelayout = gtk_widget_create_pango_layout (GTK_WIDGET(vp), NULL);
+  pfd = pango_font_description_from_string (DISTANCE_FONT);
+  pango_layout_set_font_description (rv->distancelayout, pfd);
   /* freeing PangoFontDescription, cause it has been copied by prev. call */
   pango_font_description_free (pfd);
 

@@ -49,5 +49,6 @@ void vik_imagebox_layer_free ( VikImageboxLayer *vil );
 VikImageboxLayer *vik_imagebox_layer_create ( VikViewport *vp );
 gboolean vik_imagebox_layer_properties ( VikImageboxLayer *vcl, gpointer vp );
 
+void vik_imagebox_layer_generate_map( VikImageboxLayer *vil, gpointer vik_layers_panel);
 
 #endif
