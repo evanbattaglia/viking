@@ -24,7 +24,7 @@
  */
 
 #define WAYPOINT_FONT "Sans 8"
-#define DISTANCE_FONT "Sans 12 Bold"
+#define DISTANCE_FONT "Sans 16 Bold"
 
 /* WARNING: If you go beyond this point, we are NOT responsible for any ill effects on your sanity */
 /* viktrwlayer.c -- 5000+ lines can make a difference in the state of things */
