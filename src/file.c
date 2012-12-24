@@ -623,6 +623,8 @@ VikLoadType_t a_file_load ( VikAggregateLayer *top, VikViewport *vp, const gchar
       return LOAD_TYPE_UNSUPPORTED_FAILURE;
     }
 
+    a_lua(VIK_TRW_LAYER(vtl));
+
     vik_layer_rename ( vtl, a_file_basename ( filename ) );
     vik_layer_post_read ( vtl, vp, TRUE );
     vik_aggregate_layer_add_layer ( top, vtl );
