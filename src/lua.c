@@ -11,6 +11,38 @@
 #define VIKLUA_TRWLAYER_METATABLE "Viking.trwlayer"
 #define VIKLUA_GLIB_HASHITER_METADATA "Viking.glib.hashiter"
 
+#define VIKLUA_GLIB_LIST_METADATA "Viking.glib.list"
+#define VIKLUA_TRACK_METATABLE "Viking.track"
+#define VIKLUA_TRACKPOINT_METATABLE "Viking.trackpoint"
+#define VIKLUA_COORD_METATABLE "Viking.coord"
+
+/****** VIKCOORD ****/
+static void push_viklua_coord(lua_State *L, VikCoord *c)
+{
+  VikCoord **pc = (VikCoord **) lua_newuserdata(L, sizeof(VikCoord *));
+  *pc = c;
+  luaL_getmetatable(L, VIKLUA_COORD_METATABLE);
+  lua_setmetatable(L, -2);
+}
+
+static int viklua_coord_diff(lua_State *L)
+{
+  VikCoord **c1 = luaL_checkudata(L, 1, VIKLUA_COORD_METATABLE);
+  luaL_argcheck(L, c1 != NULL, 1, "`coord' expected");
+  VikCoord **c2 = luaL_checkudata(L, 2, VIKLUA_COORD_METATABLE);
+  luaL_argcheck(L, c2 != NULL, 2, "`coord' expected");
+
+  lua_pushnumber(L, vik_coord_diff(*c1, *c2));
+  return 1;
+}
+static const struct luaL_Reg viklua_coord_f[] = {   // static functions
+  { "diff", viklua_coord_diff },
+  { NULL, NULL },
+};
+static const struct luaL_Reg viklua_coord_m[] = {   // object methods
+  { NULL, NULL },
+};
+
 /*** WAYPOINT ***/
 static void push_viklua_waypoint(lua_State *L, VikWaypoint *wp)
 {
@@ -31,11 +63,82 @@ static int viklua_waypoint_comment(lua_State *L)
   return 1;
 }
 
+static int viklua_waypoint_coord(lua_State *L)
+{
+  VikWaypoint **lwp = luaL_checkudata(L, 1, VIKLUA_WAYPOINT_METATABLE);
+  luaL_argcheck(L, lwp != NULL, 1, "`waypoint' expected");
+  push_viklua_coord(L, &((*lwp)->coord));
+  return 1;
+}
+
 static const struct luaL_Reg viklua_waypoint_f[] = {   // static functions
   { NULL, NULL },
 };
 static const struct luaL_Reg viklua_waypoint_m[] = {   // object methods
   { "comment", viklua_waypoint_comment },
+  { "coord", viklua_waypoint_coord },
+  { NULL, NULL },
+};
+
+
+static void push_viklua_trackpoint(lua_State *L, VikTrackpoint *tp)
+{
+  VikTrackpoint **ltp = (VikTrackpoint **) lua_newuserdata(L, sizeof(VikTrackpoint *));
+  *ltp = tp;
+  luaL_getmetatable(L, VIKLUA_TRACKPOINT_METATABLE);
+  lua_setmetatable(L, -2);
+}
+static int viklua_trackpoint_coord(lua_State *L)
+{
+  VikTrackpoint **ltp = luaL_checkudata(L, 1, VIKLUA_TRACKPOINT_METATABLE);
+  luaL_argcheck(L, ltp != NULL, 1, "`trackpoint' expected");
+  push_viklua_coord(L, &((*ltp)->coord));
+  return 1;
+}
+static const struct luaL_Reg viklua_trackpoint_f[] = {   // static functions
+  { NULL, NULL },
+};
+static const struct luaL_Reg viklua_trackpoint_m[] = {   // object methods
+  { "coord", viklua_trackpoint_coord },
+  { NULL, NULL },
+};
+
+
+static void push_viklua_track(lua_State *L, VikTrack *track)
+{
+  VikTrack **lt = (VikTrack **) lua_newuserdata(L, sizeof(VikTrack *));
+  *lt = track;
+  luaL_getmetatable(L, VIKLUA_TRACK_METATABLE);
+  lua_setmetatable(L, -2);
+}
+static int viklua_track_trackpoints_iter(lua_State *L)
+{
+  GList **iter = (GList **) lua_touserdata(L, lua_upvalueindex(1));
+  if (*iter) {
+    push_viklua_trackpoint(L, (VikTrackpoint *) (*iter)->data);
+    *iter = (*iter)->next;
+  } else
+    lua_pushnil(L);
+  return 1;
+}
+static int viklua_track_trackpoints(lua_State *L)
+{
+  VikTrack **pvt = luaL_checkudata(L, 1, VIKLUA_TRACK_METATABLE);
+  luaL_argcheck(L, pvt != NULL, 1, "`track' expected");
+
+  GList **iter = (GList **) lua_newuserdata(L, sizeof(GList *));
+  luaL_getmetatable(L, VIKLUA_GLIB_LIST_METADATA);
+  lua_setmetatable(L, -2);
+  *iter = (*pvt)->trackpoints;
+
+  lua_pushcclosure(L, viklua_track_trackpoints_iter, 1);
+  return 1;
+}
+static const struct luaL_Reg viklua_track_f[] = {   // static functions
+  { NULL, NULL },
+};
+static const struct luaL_Reg viklua_track_m[] = {   // object methods
+  { "trackpoints", viklua_track_trackpoints},
   { NULL, NULL },
 };
 
@@ -63,7 +166,6 @@ static int viklua_trwlayer_waypoints_iter(lua_State *L)
     return 1;
   }
 }
-
 static int viklua_trwlayer_waypoints(lua_State *L)
 {
   VikTrwLayer **pvtl = luaL_checkudata(L, 1, VIKLUA_TRWLAYER_METATABLE);
@@ -79,14 +181,47 @@ static int viklua_trwlayer_waypoints(lua_State *L)
   return 1;
 }
 
+// TODO: DRY this up...
+static int viklua_trwlayer_tracks_iter(lua_State *L)
+{
+  GHashTableIter *i = (GHashTableIter *)lua_touserdata(L, lua_upvalueindex(1));
+  gpointer key;
+  gpointer wp;
+  if (g_hash_table_iter_next(i, &key, &wp)) {
+    lua_pushstring(L, (const char *)key);
+    push_viklua_track(L, (VikTrack *)wp);
+    return 2;
+  } else {
+    lua_pushnil(L);
+    return 1;
+  }
+}
+static int viklua_trwlayer_tracks(lua_State *L)
+{
+  VikTrwLayer **pvtl = luaL_checkudata(L, 1, VIKLUA_TRWLAYER_METATABLE);
+  luaL_argcheck(L, pvtl != NULL, 1, "`trwlayer' expected");
+
+  GHashTableIter *iter = (GHashTableIter *) lua_newuserdata(L, sizeof(GHashTableIter));
+  luaL_getmetatable(L, VIKLUA_GLIB_HASHITER_METADATA);
+  lua_setmetatable(L, -2);
+
+  g_hash_table_iter_init(iter, vik_trw_layer_get_tracks(*pvtl));
+
+  lua_pushcclosure(L, viklua_trwlayer_tracks_iter, 1);
+  return 1;
+}
 
 static const struct luaL_Reg viklua_trwlayer_f[] = {   // static functions
   { NULL, NULL },
 };
 static const struct luaL_Reg viklua_trwlayer_m[] = {   // object methods
   { "waypoints", viklua_trwlayer_waypoints },
+  { "tracks", viklua_trwlayer_tracks },
   { NULL, NULL },
 };
+
+
+
 
 /***********************************************************************/
 
@@ -114,6 +249,30 @@ static int lua_setup (lua_State *L) {
 
 
   luaL_newmetatable(L, VIKLUA_GLIB_HASHITER_METADATA);
+  luaL_newmetatable(L, VIKLUA_GLIB_LIST_METADATA);
+
+
+  luaL_newmetatable(L, VIKLUA_TRACK_METATABLE);
+  lua_pushstring(L, "__index");
+  lua_pushvalue(L, -2);  /* pushes the metatable */
+  lua_settable(L, -3);  /* metatable.__index = metatable */
+  luaL_openlib(L, NULL, viklua_track_m, 0);
+  luaL_openlib(L, "track", viklua_track_f, 0);
+
+  luaL_newmetatable(L, VIKLUA_TRACKPOINT_METATABLE);
+  lua_pushstring(L, "__index");
+  lua_pushvalue(L, -2);  /* pushes the metatable */
+  lua_settable(L, -3);  /* metatable.__index = metatable */
+  luaL_openlib(L, NULL, viklua_trackpoint_m, 0);
+  luaL_openlib(L, "trackpoint", viklua_trackpoint_f, 0);
+
+  luaL_newmetatable(L, VIKLUA_COORD_METATABLE);
+  lua_pushstring(L, "__index");
+  lua_pushvalue(L, -2);  /* pushes the metatable */
+  lua_settable(L, -3);  /* metatable.__index = metatable */
+  luaL_openlib(L, NULL, viklua_coord_m, 0);
+  luaL_openlib(L, "coord", viklua_coord_f, 0);
+
   return 1;
 }
 
