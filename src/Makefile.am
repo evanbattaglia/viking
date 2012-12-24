@@ -180,6 +180,11 @@ libviking_a_SOURCES += \
 	libjpeg/jpeg-marker.c libjpeg/jpeg-marker.h
 endif
 
+if LUA
+libviking_a_SOURCES += \
+  lua.c lua.h
+endif
+
 viking_SOURCES = main.c
 
 LDADD           = libviking.a $(PACKAGE_LIBS) @EXPAT_LIBS@ @LIBCURL@ icons/libicons.a

@@ -222,6 +222,20 @@ case $ac_cv_enable_geocaches in
 esac
 AM_CONDITIONAL([GEOCACHES], [test x$ac_cv_enable_geocaches = xyes])
 
+AC_ARG_ENABLE(lua, AC_HELP_STRING([--enable-lua],
+	      [enable Lua scripting (default is enable).]),
+              [ac_cv_enable_lua=$enableval],
+              [ac_cv_enable_lua=yes])
+AC_CACHE_CHECK([whether to enable Lua scripting support],
+               [ac_cv_enable_lua], [ac_cv_enable_lua=yes])
+case $ac_cv_enable_lua in
+  yes)
+    AC_CHECK_LIB(lua5.2,lua_pushnumber,,AC_MSG_ERROR([liblua is needed for Lua scripting[,] but is not found. Lua scripting can be disabled with --disable-lua]))
+    AC_DEFINE(VIK_CONFIG_LUA, [], [LUA STUFF])
+    ;;
+esac
+AM_CONDITIONAL([LUA], [test x$ac_cv_enable_lua = xyes])
+
 AC_ARG_ENABLE(geotag, AC_HELP_STRING([--enable-geotag],
 	      [enable Geotag Support (default is enable).]),
               [ac_cv_enable_geotag=$enableval],
@@ -373,6 +387,7 @@ echo "SPOTMaps                         : $ac_cv_enable_spotmaps"
 echo "Geonames                         : $ac_cv_enable_geonames"
 echo "Geocaches Acquire                : $ac_cv_enable_geocaches"
 echo "Geotag Support                   : $ac_cv_enable_geotag"
+echo "Lua Support                      : $ac_cv_enable_lua"
 echo "USGS 24k DEM                     : $ac_cv_enable_dem24k"
 echo "Realtime GPS Tracking            : $ac_cv_enable_realtimegpstracking"
 echo "Size of map cache (in memory)    : ${VIK_CONFIG_MAPCACHE_SIZE}"

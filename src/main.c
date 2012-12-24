@@ -33,6 +33,7 @@
 #include "preferences.h"
 #include "globals.h"
 #include "vikmapslayer.h"
+#include "lua.h"
 
 #ifdef VIK_CONFIG_GEOCACHES
 void a_datasource_gc_init();
@@ -199,6 +200,9 @@ int main( int argc, char *argv[] )
 
 #ifdef VIK_CONFIG_GEOCACHES
   a_datasource_gc_init();
+#endif
+#ifdef VIK_CONFIG_LUA
+  a_lua_init();
 #endif
 
   /* Set the icon */
