@@ -16,6 +16,10 @@
 #define VIKLUA_TRACKPOINT_METATABLE "Viking.trackpoint"
 #define VIKLUA_COORD_METATABLE "Viking.coord"
 
+
+static const gchar *lua_file;
+static const gchar **lua_args;
+
 /****** VIKCOORD ****/
 static void push_viklua_coord(lua_State *L, VikCoord *c)
 {
@@ -35,11 +39,31 @@ static int viklua_coord_diff(lua_State *L)
   lua_pushnumber(L, vik_coord_diff(*c1, *c2));
   return 1;
 }
+static int viklua_coord_lat(lua_State *L)
+{
+  VikCoord **c = luaL_checkudata(L, 1, VIKLUA_COORD_METATABLE);
+  luaL_argcheck(L, c != NULL, 1, "`coord' expected");
+  struct LatLon ll;
+  vik_coord_to_latlon(*c, &ll);
+  lua_pushnumber(L, ll.lat);
+  return 1;
+}
+static int viklua_coord_lon(lua_State *L)
+{
+  VikCoord **c = luaL_checkudata(L, 1, VIKLUA_COORD_METATABLE);
+  luaL_argcheck(L, c != NULL, 1, "`coord' expected");
+  struct LatLon ll;
+  vik_coord_to_latlon(*c, &ll);
+  lua_pushnumber(L, ll.lon);
+  return 1;
+}
 static const struct luaL_Reg viklua_coord_f[] = {   // static functions
   { "diff", viklua_coord_diff },
   { NULL, NULL },
 };
 static const struct luaL_Reg viklua_coord_m[] = {   // object methods
+  { "lat", viklua_coord_lat },
+  { "lon", viklua_coord_lon },
   { NULL, NULL },
 };
 
@@ -283,31 +307,44 @@ static void bail(lua_State *L, char *msg){
 	exit(1);
 }
 
+void a_lua_set_file(const gchar *file, const gchar **args)
+{
+  lua_file = file;
+  lua_args = args;
+}
 
 // TODO: only have one L accoss many instances of calling
 void a_lua(VikTrwLayer *vtl)
 {
-    lua_State *L = luaL_newstate();                        /* Create Lua state variable */
-    luaL_openlibs(L);                                      /* Load Lua libraries */
-    lua_setup(L);
+  if (!lua_file)
+    return;
+
+  lua_State *L = luaL_newstate();                        /* Create Lua state variable */
+  luaL_openlibs(L);                                      /* Load Lua libraries */
+  lua_setup(L);
 
 
-    if (luaL_loadfile(L, "/home/evan/t/dev/lua/newvik.lua"))               /* Load but don't run the Lua script */
-        bail(L, "luaL_loadfile() failed");                 /* Error out if file can't be read */
+  if (luaL_loadfile(L, lua_file))               /* Load but don't run the Lua script */
+    bail(L, "luaL_loadfile() failed");                 /* Error out if file can't be read */
 
-    if (lua_pcall(L, 0, 0, 0)) bail(L, "lua_pcall() failed"); // priming run to load function names i guess
+  if (lua_pcall(L, 0, 0, 0)) bail(L, "lua_pcall() failed"); // priming run to load function names i guess
 
-    lua_getglobal(L, "run");
-    push_viklua_trwlayer(L, vtl); // push a waypoint
+  lua_getglobal(L, "run");
+  push_viklua_trwlayer(L, vtl); // push a waypoint
 
-    printf("In C, calling Lua\n");
+  gint n_extra_args = 0;
+  const gchar **args;
+  for (args = lua_args; args && *args; args++, n_extra_args++)
+    lua_pushstring(L, *args);
 
-    if (lua_pcall(L, 1, 1, 0))                  /* Run the loaded Lua script */
-        bail(L, "lua_pcall() failed");          /* Error out if Lua file has an error */
+  printf("In C, calling Lua\n");
 
-    printf("Back in C again\n");
+  if (lua_pcall(L, 1+n_extra_args, 1, 0))         /* Run the loaded Lua script */
+    bail(L, "lua_pcall() failed");          /* Error out if Lua file has an error */
 
-    lua_close(L);                               /* Clean up, free the Lua state var */
+  printf("Back in C again\n");
+
+  lua_close(L);                               /* Clean up, free the Lua state var */
 }
 
 

@@ -50,6 +50,8 @@ void a_datasource_gc_init();
 
 #include "modules.h"
 
+#include "lua.h"
+
 #define MAX_WINDOWS 1024
 
 /* FIXME LOCALEDIR must be configured by ./configure --localedir */
@@ -59,6 +61,11 @@ void a_datasource_gc_init();
 #undef LOCALEDIR
 #define LOCALEDIR "locale"
 #endif
+
+
+static const gchar *lua_file;
+static const gchar **lua_args;
+static gboolean lua_headless;
 
 static guint window_count = 0;
 
@@ -90,14 +97,16 @@ static VikWindow *new_window ()
   {
     VikWindow *vw = vik_window_new ();
 
-    g_signal_connect (G_OBJECT (vw), "destroy",
-		      G_CALLBACK (destroy), NULL);
+    if (! lua_headless)
+      g_signal_connect (G_OBJECT (vw), "destroy",
+	  	      G_CALLBACK (destroy), NULL);
     g_signal_connect (G_OBJECT (vw), "newwindow",
 		      G_CALLBACK (new_window), NULL);
     g_signal_connect (G_OBJECT (vw), "openwindow",
 		      G_CALLBACK (open_window), NULL);
 
-    gtk_widget_show_all ( GTK_WIDGET(vw) );
+    if (!lua_headless)
+      gtk_widget_show_all ( GTK_WIDGET(vw) );
 
     window_count++;
 
@@ -130,6 +139,9 @@ static void open_window ( VikWindow *vw, GSList *files )
 /* Options */
 static GOptionEntry entries[] = 
 {
+  { "lua", 0, 0, G_OPTION_ARG_FILENAME, &lua_file, N_("Run Lua script on GPX input"), NULL },
+  { "lua-arg", 0, 0, G_OPTION_ARG_STRING_ARRAY, &lua_args, N_("Add an string argument to the lua script (can take multiple)"), NULL },
+  { "lua-headless", 0, 0, G_OPTION_ARG_NONE, &lua_headless, N_("Run lua scripts and exit (headless"), NULL },
   { "debug", 'd', 0, G_OPTION_ARG_NONE, &vik_debug, N_("Enable debug output"), NULL },
   { "verbose", 'V', 0, G_OPTION_ARG_NONE, &vik_verbose, N_("Enable verbose output"), NULL },
   { "version", 'v', 0, G_OPTION_ARG_NONE, &vik_version, N_("Show version"), NULL },
@@ -171,7 +183,9 @@ int main( int argc, char *argv[] )
     }
     return EXIT_FAILURE;
   }
-   
+
+  a_lua_set_file(lua_file, lua_args);
+
   if (vik_version)
   {
     g_printf ("%s %s\nCopyright (c) 2003-2008 Evan Battaglia\nCopyright (c) 2008-2010 Viking's contributors\n", PACKAGE_NAME, PACKAGE_VERSION);
@@ -216,7 +230,11 @@ int main( int argc, char *argv[] )
       vik_window_open_file ( first_window, argv[i], argc == 2 );
   }
 
-  gtk_main ();
+  if (lua_headless)
+    gtk_widget_destroy( GTK_WIDGET(first_window) );
+  else
+    gtk_main ();
+
   gdk_threads_leave ();
 
   a_babel_uninit ();
