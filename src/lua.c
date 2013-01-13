@@ -119,11 +119,22 @@ static int viklua_trackpoint_coord(lua_State *L)
   push_viklua_coord(L, &((*ltp)->coord));
   return 1;
 }
+static int viklua_trackpoint_timestamp(lua_State *L)
+{
+  VikTrackpoint **ltp = luaL_checkudata(L, 1, VIKLUA_TRACKPOINT_METATABLE);
+  luaL_argcheck(L, ltp != NULL, 1, "`trackpoint' expected");
+  if ((*ltp)->has_timestamp)
+    lua_pushnumber(L, (*ltp)->timestamp);
+  else
+    lua_pushnil(L);
+  return 1;
+}
 static const struct luaL_Reg viklua_trackpoint_f[] = {   // static functions
   { NULL, NULL },
 };
 static const struct luaL_Reg viklua_trackpoint_m[] = {   // object methods
   { "coord", viklua_trackpoint_coord },
+  { "timestamp", viklua_trackpoint_timestamp },
   { NULL, NULL },
 };
 
