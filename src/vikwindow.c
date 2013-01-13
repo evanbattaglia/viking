@@ -1777,7 +1777,8 @@ void vik_window_open_file ( VikWindow *vw, const gchar *filename, gboolean chang
     //case LOAD_TYPE_OTHER_SUCCESS:
     default:
       update_recently_used_document(filename);
-      draw_update ( vw );
+      if (GTK_WIDGET_REALIZED(vw))
+        draw_update ( vw );
       break;
   }
 }
