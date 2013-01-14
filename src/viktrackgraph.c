@@ -1,6 +1,35 @@
 #include "viking.h"
 #include "viktrackgraph.h"
 
+#define DIJKSTRA_DEBUG 0
+
+#if DIJKSTRA_DEBUG
+
+// DEBUGGING PURPOSES -- assumes 6 nodes
+static gpointer node_map[6] = { NULL,NULL,NULL,NULL,NULL,NULL };
+char temp_node_map(gpointer p)
+{
+  gint i;
+  for (i = 0; i < 6 && node_map[i]; i++)
+    if (node_map[i] == p)
+      return 'A' + i;
+  node_map[i] = p;
+  return 'A' + i;
+}
+
+void dijkstra_heap_debug_dump(DijkstraHeapHash *dhh)
+{
+  gint i;
+  dijkstra_debug("HEAP length %d:\n", dhh->heap_length);
+  for (i = 0; i < dhh->heap_length; i++) {
+    dijkstra_debug("Heap node 0x%x (%c) weight %f\n", dhh->heap_data[i], temp_node_map(dhh->heap_data[i]), dhh->heap_weights[i]);
+  }
+}
+
+#define dijkstra_debug g_print
+
+#endif
+
 // TODO: change adjacency lists into lists not arrays
 struct _VikTrackgraph {
   GHashTable *adjacency_lists;
@@ -46,7 +75,11 @@ void vik_trackgraph_add_node(VikTrackgraph *tg, VikTrackgraphNode *n)
   if (g_hash_table_lookup(tg->adjacency_lists, n))
     g_free(n); // already there
   else {
-    g_hash_table_insert(tg->adjacency_lists, n, g_array_new(FALSE, TRUE, sizeof(gpointer)));
+    GArray *arr;
+    g_hash_table_insert(tg->adjacency_lists, n, arr = g_array_new(FALSE, TRUE, sizeof(gpointer)));
+#if DIJKSTRA_DEBUG
+    dijkstra_debug("DEBUG: adding array 0x%x     (add_node tg=0x%x, n=0x%x (%c))\n", arr, tg, n, temp_node_map(n));
+#endif
   }
 }
 
@@ -69,6 +102,11 @@ void vik_trackgraph_add_edge(VikTrackgraph *tg, const VikTrackgraphNode *n1, con
   NodeAndDistance *to_n1 = node_and_distance_new(orig_n1, distance);
   g_array_append_val(array_n1, to_n2);
   g_array_append_val(array_n2, to_n1);
+
+#if DIJKSTRA_DEBUG
+  dijkstra_debug("Append array_n1=0x%x to_n2=0x%x (node 0x%x)      (add_edge tg=0x%x, n1=0x%x, n2=0x%x, distance=%f)\n", array_n1, to_n2, to_n2->node, tg, n1, n2, distance);
+  dijkstra_debug("Append array_n2=0x%x to_n1=0x%x (node 0x%x)      (add_edge tg=0x%x, n1=0x%x, n2=0x%x, distance=%f)\n", array_n2, to_n1, to_n1->node, tg, n1, n2, distance);
+#endif
 }
 
 /* can be g_freed, or added to a trackgraph */
@@ -110,9 +148,17 @@ void dijkstra_heap_hash_swap(DijkstraHeapHash *dhh, guint i1, guint i2)
   dhh->heap_weights[i1] = dhh->heap_weights[i2];
   dhh->heap_weights[i2] = tmp2;
 
+// TODO enable this
+//  g_assert(i1 < dhh->heap_length); 
+//  g_assert(i2 < dhh->heap_length);
+
   // update dhh->heap_positions
   g_hash_table_insert(dhh->heap_positions, dhh->heap_data[i1], GINT_TO_POINTER(i1));
   g_hash_table_insert(dhh->heap_positions, dhh->heap_data[i2], GINT_TO_POINTER(i2));
+#if DIJKSTRA_DEBUG
+  dijkstra_debug("heap position hash: swap(%d,%d): inserting 0x%x (%c)\n", i1, i2, dhh->heap_data[i1], temp_node_map(dhh->heap_data[i1]));
+  dijkstra_debug("heap position hash: swap(%d,%d): inserting 0x%x (%c)\n", i1, i2, dhh->heap_data[i2], temp_node_map(dhh->heap_data[i2]));
+#endif
 }
 
 
@@ -165,6 +211,9 @@ DijkstraHeapHash *dijkstra_heap_hash_new(GList *data, gdouble default_weight)
     dhh->heap_data[i] = iter->data;
     dhh->heap_weights[i] = default_weight;
     g_hash_table_insert(dhh->heap_positions, dhh->heap_data[i], GINT_TO_POINTER(i));
+#if DIJKSTRA_DEBUG
+    dijkstra_debug("heap position hash: new: inserting 0x%x (%c)\n", dhh->heap_data[i], temp_node_map(dhh->heap_data[i]));
+#endif
   }
 
   return dhh;
@@ -177,11 +226,18 @@ void dijkstra_heap_hash_pop(DijkstraHeapHash *dhh, gpointer *node, gdouble *weig
   *node = dhh->heap_data[0];
   *weight = dhh->heap_weights[0];
   g_hash_table_remove(dhh->heap_positions, *node);
+#if DIJKSTRA_DEBUG
+  dijkstra_debug("heap position hash: pop: removing 0x%x (%c)\n", *node, temp_node_map(*node));
+#endif
   dhh->heap_length--;
 
   // bring last to top
   dhh->heap_data[0] = dhh->heap_data[dhh->heap_length];
   dhh->heap_weights[0] = dhh->heap_weights[dhh->heap_length];
+  g_hash_table_insert(dhh->heap_positions, dhh->heap_data[0], GINT_TO_POINTER(0));
+#if DIJKSTRA_DEBUG
+  dijkstra_debug("heap position hash: pop: inserting 0x%x (%c)\n", dhh->heap_data[0], temp_node_map(dhh->heap_data[0]));
+#endif
   dijkstra_heap_hash_sift_down(dhh, 0);
 }
 
@@ -222,7 +278,6 @@ void dijkstra_heap_hash_free(DijkstraHeapHash *dhh)
   g_free(dhh);
 }
 
-
 GList *vik_trackgraph_dijkstra(VikTrackgraph *tg, VikTrackgraphNode *start_node, VikTrackgraphNode *end_node, gdouble *total_distance)
 {
   // get canonical nodes used in the graph
@@ -230,7 +285,9 @@ GList *vik_trackgraph_dijkstra(VikTrackgraph *tg, VikTrackgraphNode *start_node,
   VikTrackgraphNode *end;
   g_assert(g_hash_table_lookup_extended(tg->adjacency_lists, start_node, (gpointer *) &start, NULL));
   g_assert(g_hash_table_lookup_extended(tg->adjacency_lists, end_node, (gpointer *) &end, NULL));
-
+#if DIJKSTRA_DEBUG
+  dijkstra_debug("DEBUG: dijkstra tg=0x%x get me from 0x%x (%c) to 0x%x (%c)\n", tg, start, end, temp_node_map(start), temp_node_map(end));
+#endif
 
   // distance from from source to each node
   GHashTable *previous = g_hash_table_new(g_direct_hash, g_direct_equal);
@@ -244,8 +301,18 @@ GList *vik_trackgraph_dijkstra(VikTrackgraph *tg, VikTrackgraphNode *start_node,
   while (! dijkstra_heap_hash_empty(heap_hash)) {
     gdouble current_node_distance;
     VikTrackgraphNode *current_node;
+
+#if DIJKSTRA_DEBUG
+    dijkstra_debug("-----------iteration----------\n");
+    dijkstra_heap_debug_dump(heap_hash);
+#endif
     dijkstra_heap_hash_pop(heap_hash, (gpointer *) &current_node, &current_node_distance);
-    
+#if DIJKSTRA_DEBUG
+    dijkstra_debug("DEBUG: dijkstra's going with node 0x%x (%c) (distance of %f)\n", current_node, temp_node_map(current_node), current_node_distance);
+    dijkstra_heap_debug_dump(heap_hash);
+    dijkstra_debug("-----------iteration----------\n");
+#endif
+
     if (current_node_distance == DIJKSTRA_INFINITY) {
       g_hash_table_destroy(previous);
       dijkstra_heap_hash_free(heap_hash);
@@ -267,13 +334,23 @@ GList *vik_trackgraph_dijkstra(VikTrackgraph *tg, VikTrackgraphNode *start_node,
     gint i;
     for (i = 0; i < neighbors->len; i++) {
       NodeAndDistance *neighbor_and_distance = g_array_index(neighbors, NodeAndDistance *, i);
+//      g_assert(neighbor_and_distance);
       VikTrackgraphNode *neighbor = neighbor_and_distance->node;
+#if DIJKSTRA_DEBUG
+      dijkstra_debug("    DIJKSTRA: should I try 0x%x (%c) distance %f? is it unvisited?\n", neighbor, temp_node_map(neighbor), neighbor_and_distance->distance);
+#endif
       if (dijkstra_heap_hash_includes(heap_hash, neighbor_and_distance->node))
       {  // don't retry completed nodes
         gdouble dist = dijkstra_heap_hash_get_weight(heap_hash, neighbor_and_distance->node);
         gdouble new_dist = current_node_distance + neighbor_and_distance->distance;
+#if DIJKSTRA_DEBUG
+        dijkstra_debug("    DIJKSTRA: yes, trying 0x%x (%c) new_dist %f?\n", neighbor, temp_node_map(neighbor), new_dist);
+#endif
         if (new_dist < dist) {
           g_hash_table_insert(previous, neighbor, current_node);
+#if DIJKSTRA_DEBUG
+          dijkstra_debug("    DIJKSTRA: UPDATING 0x%x (%c) new_dist %f\n", neighbor_and_distance->node, temp_node_map(neighbor_and_distance->node), new_dist);
+#endif
           dijkstra_heap_hash_update(heap_hash, neighbor_and_distance->node, new_dist);
         }
       }
