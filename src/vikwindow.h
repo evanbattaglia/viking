@@ -92,6 +92,8 @@ typedef struct {
 
 G_END_DECLS
 
+void vik_window_save_image_file ( VikWindow *vw, const gchar *fn, guint w, guint h, gdouble zoom, gboolean save_as_png );
+
 #define VIK_WINDOW_FROM_WIDGET(x) VIK_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(x)))
 
 #endif

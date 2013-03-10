@@ -377,7 +377,7 @@ void a_lua(VikTrwLayer *vtl)
   if (lua_pcall(L, 0, 0, 0)) bail(L, "lua_pcall() failed"); // priming run to load function names i guess
 
   lua_getglobal(L, "run");
-  push_viklua_trwlayer(L, vtl); // push a waypoint
+  push_viklua_trwlayer(L, vtl); // push the sole arg
 
   gint n_extra_args = 0;
   const gchar **args;

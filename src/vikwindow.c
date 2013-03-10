@@ -2075,7 +2075,7 @@ static void zoom_to_cb ( GtkAction *a, VikWindow *vw )
   }
 }
 
-static void save_image_file ( VikWindow *vw, const gchar *fn, guint w, guint h, gdouble zoom, gboolean save_as_png )
+void vik_window_save_image_file ( VikWindow *vw, const gchar *fn, guint w, guint h, gdouble zoom, gboolean save_as_png )
 {
   /* more efficient way: stuff draws directly to pixbuf (fork viewport) */
   GdkPixbuf *pixbuf_to_save;
@@ -2323,7 +2323,7 @@ static void draw_to_image_file ( VikWindow *vw, const gchar *fn, gboolean one_im
   {
     gtk_widget_hide ( GTK_WIDGET(dialog) );
     if ( one_image_only )
-      save_image_file ( vw, fn, 
+      vik_window_save_image_file ( vw, fn, 
                       vw->draw_image_width = gtk_spin_button_get_value_as_int ( GTK_SPIN_BUTTON(width_spin) ),
                       vw->draw_image_height = gtk_spin_button_get_value_as_int ( GTK_SPIN_BUTTON(height_spin) ),
                       gtk_spin_button_get_value ( GTK_SPIN_BUTTON(zoom_spin) ), /* do not save this value, default is current zoom */
