@@ -4,12 +4,16 @@
 #include <lualib.h>                             /* Always include this when calling Lua */
 #include "vikwaypoint.h"
 #include "viktrwlayer.h"
+#include "lua.h"
+#include "vikwindow.h"
+#include "viklayerspanel.h"
 #include "globals.h"
 
 #include <stdlib.h>
 
 #define VIKLUA_WAYPOINT_METATABLE "Viking.waypoint"
 #define VIKLUA_TRWLAYER_METATABLE "Viking.trwlayer"
+#define VIKLUA_WINDOW_METATABLE "Viking.window"
 #define VIKLUA_GLIB_HASHITER_METADATA "Viking.glib.hashiter"
 
 #define VIKLUA_GLIB_LIST_METADATA "Viking.glib.list"
@@ -217,7 +221,7 @@ static const struct luaL_Reg viklua_track_m[] = {   // object methods
 /*** VIKTRWLAYER ***/
 static void push_viklua_trwlayer(lua_State *L, VikTrwLayer *vtl)
 {
-  VikTrwLayer **ret = (VikTrwLayer **) lua_newuserdata(L, sizeof(VikWaypoint *));
+  VikTrwLayer **ret = (VikTrwLayer **) lua_newuserdata(L, sizeof(VikTrwLayer *));
   *ret = vtl;
   luaL_getmetatable(L, VIKLUA_TRWLAYER_METATABLE);
   lua_setmetatable(L, -2);
@@ -292,6 +296,55 @@ static const struct luaL_Reg viklua_trwlayer_m[] = {   // object methods
 };
 
 
+/*** VIKWINDOW ***/
+static void push_viklua_window(lua_State *L, VikWindow *vtl)
+{
+  VikWindow **ret = (VikWindow **) lua_newuserdata(L, sizeof(VikWindow *));
+  *ret = vtl;
+  luaL_getmetatable(L, VIKLUA_WINDOW_METATABLE);
+  lua_setmetatable(L, -2);
+}
+
+static int viklua_window_top_trwlayer(lua_State *L)
+{
+  VikWindow **pvw = luaL_checkudata(L, 1, VIKLUA_WINDOW_METATABLE);
+  luaL_argcheck(L, pvw != NULL, 1, "`vikwindow' expected");
+
+  VikLayersPanel *vlp = vik_window_layers_panel(*pvw);
+  VikTrwLayer *vtl = VIK_TRW_LAYER(vik_layers_panel_get_layer_of_type(vlp, VIK_LAYER_TRW));
+
+  if (vlp)
+    push_viklua_trwlayer(L, vtl);
+  else
+    lua_pushnil(L);
+
+  return 1;
+}
+
+static int viklua_window_save_image_file(lua_State *L)
+{
+  VikWindow **pvw = luaL_checkudata(L, 1, VIKLUA_WINDOW_METATABLE);
+  luaL_argcheck(L, pvw != NULL, 1, "`vikwindow' expected");
+  const char *fn = luaL_checkstring(L, 2);
+  int w = luaL_checkint(L, 3);
+  int h = luaL_checknumber(L, 4);
+  double zoom = luaL_checknumber(L, 5);
+  int save_as_png = lua_toboolean(L, 6);
+
+  vik_window_save_image_file(*pvw, fn, w, h, zoom, save_as_png);
+  return 0;
+}
+
+static const struct luaL_Reg viklua_window_f[] = {   // static functions
+  { NULL, NULL },
+};
+static const struct luaL_Reg viklua_window_m[] = {   // object methods
+  { "top_trwlayer", viklua_window_top_trwlayer },
+  { "save_image_file", viklua_window_save_image_file },
+  { NULL, NULL },
+};
+
+
 
 
 /***********************************************************************/
@@ -306,6 +359,17 @@ static int lua_setup (lua_State *L) {
   luaL_openlib(L, NULL, viklua_waypoint_m, 0);
 
   luaL_openlib(L, "waypoint", viklua_waypoint_f, 0);
+
+
+  luaL_newmetatable(L, VIKLUA_WINDOW_METATABLE);
+
+  lua_pushstring(L, "__index");
+  lua_pushvalue(L, -2);  /* pushes the metatable */
+  lua_settable(L, -3);  /* metatable.__index = metatable */
+
+  luaL_openlib(L, NULL, viklua_window_m, 0);
+
+  luaL_openlib(L, "window", viklua_window_f, 0);
 
 
   luaL_newmetatable(L, VIKLUA_TRWLAYER_METATABLE);
@@ -361,7 +425,7 @@ void a_lua_set_file(const gchar *file, const gchar **args)
 }
 
 // TODO: only have one L accoss many instances of calling
-void a_lua(VikTrwLayer *vtl)
+void a_lua(VikWindow *vw)
 {
   if (!lua_file)
     return;
@@ -377,7 +441,7 @@ void a_lua(VikTrwLayer *vtl)
   if (lua_pcall(L, 0, 0, 0)) bail(L, "lua_pcall() failed"); // priming run to load function names i guess
 
   lua_getglobal(L, "run");
-  push_viklua_trwlayer(L, vtl); // push the sole arg
+  push_viklua_window(L, vw); // push the sole arg
 
   gint n_extra_args = 0;
   const gchar **args;

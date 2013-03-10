@@ -230,6 +230,9 @@ int main( int argc, char *argv[] )
       vik_window_open_file ( first_window, argv[i], argc == 2 );
   }
 
+  if (lua_file)
+    a_lua( first_window );
+
   if (lua_headless)
     gtk_widget_destroy( GTK_WIDGET(first_window) );
   else
