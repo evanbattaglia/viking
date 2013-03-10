@@ -40,6 +40,28 @@ static int viklua_coord_diff(lua_State *L)
   lua_pushnumber(L, vik_coord_diff(*c1, *c2));
   return 1;
 }
+static int viklua_coord_set_lat(lua_State *L)
+{
+  VikCoord **c = luaL_checkudata(L, 1, VIKLUA_COORD_METATABLE);
+  double lat = luaL_checknumber(L, 2);
+  luaL_argcheck(L, c != NULL, 1, "`coord' expected");
+  struct LatLon ll;
+  vik_coord_to_latlon(*c, &ll);
+  ll.lat = lat;
+  vik_coord_load_from_latlon(*c, (*c)->mode, &ll);
+  return 0;
+}
+static int viklua_coord_set_lon(lua_State *L)
+{
+  VikCoord **c = luaL_checkudata(L, 1, VIKLUA_COORD_METATABLE);
+  double lon = luaL_checknumber(L, 2);
+  luaL_argcheck(L, c != NULL, 1, "`coord' expected");
+  struct LatLon ll;
+  vik_coord_to_latlon(*c, &ll);
+  ll.lon = lon;
+  vik_coord_load_from_latlon(*c, (*c)->mode, &ll);
+  return 0;
+}
 static int viklua_coord_lat(lua_State *L)
 {
   VikCoord **c = luaL_checkudata(L, 1, VIKLUA_COORD_METATABLE);
@@ -65,6 +87,8 @@ static const struct luaL_Reg viklua_coord_f[] = {   // static functions
 static const struct luaL_Reg viklua_coord_m[] = {   // object methods
   { "lat", viklua_coord_lat },
   { "lon", viklua_coord_lon },
+  { "set_lat", viklua_coord_set_lat },
+  { "set_lon", viklua_coord_set_lon },
   { NULL, NULL },
 };
 
