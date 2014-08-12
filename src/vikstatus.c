@@ -91,7 +91,7 @@ VikStatusbar *vik_statusbar_new ()
 
 void vik_statusbar_set_message ( VikStatusbar *vs, vik_statusbar_type_t field, const gchar *message )
 {
-  if ( field >= 0 && field < VIK_STATUSBAR_NUM_TYPES )
+  if ( field >= 0 && field < VIK_STATUSBAR_NUM_TYPES && field != 1)
   {
     GtkStatusbar *gsb = GTK_STATUSBAR(vs->status[field]);
 
