@@ -216,12 +216,12 @@ static int download( const char *hostname, const char *uri, const char *fn, Down
   ret = curl_download_get_url ( hostname, uri, f, options, ftp, &file_options, handle );
 
   if (ret != DOWNLOAD_NO_ERROR && ret != DOWNLOAD_NO_NEWER_FILE) {
-    g_debug("%s: download failed: curl_download_get_url=%d", __FUNCTION__, ret);
+    g_warning("%s: download failed: curl_download_get_url=%d, uri=%s", __FUNCTION__, ret, uri);
     failure = TRUE;
   }
 
   if (!failure && options != NULL && options->check_file != NULL && ! options->check_file(f)) {
-    g_debug("%s: file content checking failed", __FUNCTION__);
+    g_warning("%s: file content checking failed", __FUNCTION__);
     failure = TRUE;
   }
 

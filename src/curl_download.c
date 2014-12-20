@@ -204,7 +204,8 @@ int curl_download_get_url ( const char *hostname, const char *uri, FILE *f, Down
   gchar *full = NULL;
 
   /* Compose the full url */
-  full = g_strdup_printf ( "%s://%s%s", (ftp?"ftp":"https"), hostname, uri );
+  full = g_strdup_printf ( "%s://%s%s", (ftp?"ftp":"http"), hostname, uri );
+  g_warning("downloading %s\n", full);
   ret = curl_download_uri ( full, f, options, file_options, handle );
   g_free ( full );
   full = NULL;
