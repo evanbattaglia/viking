@@ -358,6 +358,26 @@ VikImageboxLayer *vik_imagebox_layer_create ( VikViewport *vp )
   return vil;
 }
 
+static void imagebox_layer_go(gpointer vil_vlp[2])
+{
+  VikImageboxLayer *vil = VIK_IMAGEBOX_LAYER ( vil_vlp[0] );
+  if (! vil->filename || ! *(vil->filename)) {
+    a_dialog_error_msg ( VIK_GTK_WINDOW_FROM_LAYER(vil), "No filename to save to!");
+    return;
+  }
+
+  VikLayersPanel *vlp = VIK_LAYERS_PANEL(vil_vlp[1]);
+  VikViewport *vp = vik_layers_panel_get_viewport(vlp);
+  VikCoord new_center;
+
+  vik_coord_load_from_latlon( &new_center, vik_viewport_get_coord_mode(vp), &(vil->center));
+  vik_viewport_set_center_coord(vp, &new_center);
+  vik_viewport_set_zoom ( vp, vil->zoom_factor );
+
+  vik_layer_emit_update ( VIK_LAYER(vil), TRUE );
+}
+
+
 static void imagebox_layer_generate_map ( gpointer vil_vlp[2] )
 {
   VikImageboxLayer *vil = VIK_IMAGEBOX_LAYER ( vil_vlp[0] );
@@ -490,6 +510,12 @@ static void imagebox_layer_add_menu_items ( VikImageboxLayer *vil, GtkMenu *menu
   item = gtk_image_menu_item_new_with_mnemonic ( _("_Generate Map") );
   gtk_image_menu_item_set_image ( (GtkImageMenuItem*)item, gtk_image_new_from_stock (GTK_STOCK_ZOOM_FIT, GTK_ICON_SIZE_MENU) );
   g_signal_connect_swapped ( G_OBJECT(item), "activate", G_CALLBACK(imagebox_layer_generate_map), pass_along );
+  gtk_menu_shell_append (GTK_MENU_SHELL (menu), item);
+  gtk_widget_show ( item );
+
+  item = gtk_image_menu_item_new_with_mnemonic ( _("Go to map center/zoom") );
+  gtk_image_menu_item_set_image ( (GtkImageMenuItem*)item, gtk_image_new_from_stock (GTK_STOCK_ZOOM_FIT, GTK_ICON_SIZE_MENU) );
+  g_signal_connect_swapped ( G_OBJECT(item), "activate", G_CALLBACK(imagebox_layer_go), pass_along );
   gtk_menu_shell_append (GTK_MENU_SHELL (menu), item);
   gtk_widget_show ( item );
 }
